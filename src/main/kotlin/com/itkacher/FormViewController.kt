@@ -21,6 +21,8 @@ import com.intellij.openapi.fileChooser.FileChooser
 import com.intellij.openapi.fileChooser.FileChooserDescriptor
 import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.roots.ProjectRootManager
+import com.intellij.openapi.vfs.VfsUtilCore
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.psi.PsiManager
 import com.intellij.psi.codeStyle.CodeStyleManager
@@ -49,7 +51,11 @@ import java.util.concurrent.atomic.AtomicBoolean
 import javax.swing.JTable
 
 
-class FormViewController(private val form: MainForm, settings: PluginPreferences, private val project: Project) : JTreeItemMenuListener, TableClickListener {
+class FormViewController(
+    private val form: MainForm,
+    private val project: Project,
+    private val requestDataSource: RequestDataSource
+) : JTreeItemMenuListener, TableClickListener {
 
     private val dataForm = DataForm()
     private val requestTable = dataForm.requestTable
@@ -74,13 +80,13 @@ class FormViewController(private val form: MainForm, settings: PluginPreferences
         }
 
         form.clearButton.addActionListener {
-            requestListModel.clear()
-            RequestDataSource.clear()
-            tabsHelper.clearTabs()
+            clear()
         }
         form.scrollToBottomButton.addActionListener {
             requestTable.clearSelection()
-            requestTable.scrollRectToVisible(requestTable.getCellRect(requestTable.rowCount - 1, 0, true))
+            if (requestTable.rowCount > 0) {
+                requestTable.scrollRectToVisible(requestTable.getCellRect(requestTable.rowCount - 1, 0, true))
+            }
         }
         requestTable.selectionModel.addListSelectionListener { it ->
             if (!it.valueIsAdjusting) {
@@ -127,14 +133,21 @@ class FormViewController(private val form: MainForm, settings: PluginPreferences
                 }
             }
         }
-        if (requestTable.selectedColumn == -1) {
+        val selectedRequestId = requestListModel.getRequest(requestTable.selectedRow)?.id
+        val shouldScroll = requestTable.selectedRow == -1
+        requestListModel.addOrUpdate(debugRequest)
+        if (selectedRequestId == debugRequest.id) {
+            fillRequestInfo(debugRequest)
+        }
+        if (shouldScroll && requestTable.rowCount > 0) {
             requestTable.scrollRectToVisible(requestTable.getCellRect(requestTable.rowCount - 1, 0, true))
         }
-        requestListModel.addOrUpdate(debugRequest)
     }
 
     fun clear() {
         requestListModel.clear()
+        requestDataSource.clear()
+        tabsHelper.clearTabs()
     }
 
     override fun createJavaModel(node: JsonMutableTreeNode) {
@@ -164,6 +177,11 @@ class FormViewController(private val form: MainForm, settings: PluginPreferences
         val descriptor = FileChooserDescriptorFactory.createSingleFolderDescriptor()
         val selected = FileChooser.chooseFiles(descriptor, project, null)
         selected.firstOrNull()?.let { selectedVirtualFile ->
+            val targetDirectory = if (selectedVirtualFile.isDirectory) {
+                selectedVirtualFile
+            } else {
+                selectedVirtualFile.parent
+            }
             val pathToDirectory = if (selectedVirtualFile.isDirectory) {
                 selectedVirtualFile.path
             } else {
@@ -181,20 +199,17 @@ class FormViewController(private val form: MainForm, settings: PluginPreferences
                 file
             }
             if (file != null && classes.isNotEmpty()) {
-                val segments = file.path.split(File.separator)
-                val parts = ArrayList<String>()
-                for (segment in segments.reversed()) {
-                    if (segment == file.name) continue
-                    if (segment == JAVA || segment == SCR) break
-                    parts.add(segment)
-                }
-                val packageName = parts.reversed().joinToString(".")
+                val sourceRoot = ProjectRootManager.getInstance(project).fileIndex.getSourceRootForFile(targetDirectory)
+                val packageName = sourceRoot?.let { VfsUtilCore.getRelativePath(targetDirectory, it, '.') }.orEmpty()
                 val textBuilder = if (isJava) {
                     JavaModelPrinter(classes).build()
                 } else {
                     KotlinModelPrinter(classes).build()
                 }
-                textBuilder.insert(0, "package $packageName;\r\n\r\n")
+                if (packageName.isNotBlank()) {
+                    val terminator = if (isJava) ";" else ""
+                    textBuilder.insert(0, "package $packageName$terminator\r\n\r\n")
+                }
                 classes.firstOrNull()?.let {
                     writeAndOpenFile(file, textBuilder.toString())
                 }
@@ -245,8 +260,7 @@ class FormViewController(private val form: MainForm, settings: PluginPreferences
         requestListModel.addAll(requestList)
     }
 
-    companion object {
-        const val JAVA = "java"
-        const val SCR = "scr"
+    fun dispose() {
+        tabsHelper.dispose()
     }
 }

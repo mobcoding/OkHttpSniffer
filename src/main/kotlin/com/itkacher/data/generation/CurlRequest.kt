@@ -17,6 +17,7 @@ package com.itkacher.data.generation
 
 import com.itkacher.data.DebugRequest
 import java.lang.StringBuilder
+import java.util.Locale
 
 class CurlRequest(private val debugRequest: DebugRequest) {
 
@@ -29,7 +30,7 @@ class CurlRequest(private val debugRequest: DebugRequest) {
             builder
                     .append(METHOD)
                     .append(SPACE)
-                    .append(it.toUpperCase())
+                    .append(it.uppercase(Locale.ROOT))
                     .append(SPACE)
         }
         debugRequest.requestHeaders.forEach { header ->
@@ -37,7 +38,7 @@ class CurlRequest(private val debugRequest: DebugRequest) {
                     .append(HEADER_PARAM)
                     .append(SPACE)
                     .append(STRING_WRAPPER)
-                    .append(header)
+                    .append(shellQuote(header))
                     .append(STRING_WRAPPER)
                     .append(SPACE)
         }
@@ -47,7 +48,7 @@ class CurlRequest(private val debugRequest: DebugRequest) {
                     .append(DATA_BINARY)
                     .append(SPACE)
                     .append(STRING_WRAPPER)
-                    .append(requestBodyString)
+                    .append(shellQuote(requestBodyString))
                     .append(STRING_WRAPPER)
                     .append(SPACE)
         }
@@ -55,11 +56,13 @@ class CurlRequest(private val debugRequest: DebugRequest) {
         builder.append(COMPRESSED)
         builder.append(SPACE)
         builder.append(STRING_WRAPPER)
-        builder.append(debugRequest.url)
+        builder.append(shellQuote(debugRequest.url.orEmpty()))
         builder.append(STRING_WRAPPER)
 
         return builder.toString()
     }
+
+    private fun shellQuote(value: String): String = value.replace("'", "'\\''")
 
     companion object {
         const val CURL = "curl"

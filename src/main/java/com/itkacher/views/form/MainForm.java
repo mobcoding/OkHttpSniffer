@@ -91,18 +91,12 @@ public class MainForm {
             }
         });
 
-        try {
-            URL url = new URL("https://itkacher.github.io/OkHttpProfiler/plugin_initial.html");
-            initialHtml.setPage(url);
-        } catch (IOException e) {
-            e.printStackTrace();
-            URL initialFile = getClass().getClassLoader().getResource("initial.html");
-            if (initialFile != null) {
-                try {
-                    initialHtml.setPage(initialFile);
-                } catch (IOException e1) {
-                    e1.printStackTrace();
-                }
+        URL initialFile = getClass().getClassLoader().getResource("initial.html");
+        if (initialFile != null) {
+            try {
+                initialHtml.setPage(initialFile);
+            } catch (IOException e) {
+                e.printStackTrace();
             }
         }
 

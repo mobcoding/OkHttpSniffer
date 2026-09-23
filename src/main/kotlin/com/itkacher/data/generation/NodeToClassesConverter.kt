@@ -34,7 +34,7 @@ class NodeToClassesConverter {
         var nestingLevel: AtomicInteger? = null
         val ifObjectName = when (type) {
             FieldType.OBJECT -> {
-                val innerClassName = getUniqueClassName(key).capitalize()
+                val innerClassName = getUniqueClassName(key).replaceFirstChar { it.uppercase() }
                 createAndFillClass(innerClassName, node, classModel)
                 innerClassName
             }
@@ -59,7 +59,7 @@ class NodeToClassesConverter {
         node.firstOrNull()?.let {
             when {
                 it.isObject -> {
-                    val innerClassName = getUniqueClassName(name).capitalize()
+                    val innerClassName = getUniqueClassName(name).replaceFirstChar { it.uppercase() }
                     createAndFillClass(innerClassName, it, null)
                     type = FieldType.OBJECT
                     className = innerClassName
@@ -98,13 +98,12 @@ class NodeToClassesConverter {
     }
 
     private fun createAndFillClass(name: String, node: JsonNode?, parentClass: ObjectClassModel? = null) {
-        val classModel = ObjectClassModel(getUniqueClassName(name).capitalize())
+        val classModel = ObjectClassModel(name.replaceFirstChar { it.uppercase() })
         classModels.add(classModel)
         when {
             node?.isObject == true -> {
                 classModel.parentClass = parentClass
-                val fields = node.fields()
-                fields.forEach {
+                node.properties().forEach {
                     classModel.fields.add(createUniqueField(classModel, it.key, it.value))
                 }
             }
@@ -114,14 +113,15 @@ class NodeToClassesConverter {
             else -> {
                 node?.let {
                     val type = getFieldType(node)
-                    classModel.fields.add(FieldModel(name, name, type))
+                    val fieldName = getUniqueNodeName(classModel, name)
+                    classModel.fields.add(FieldModel(fieldName, name, type))
                 }
             }
         }
     }
 
     fun buildClasses(node: JsonMutableTreeNode): NodeToClassesConverter {
-        createAndFillClass(node.name, node.value)
+        createAndFillClass(getUniqueClassName(node.name), node.value)
         return this
     }
 
@@ -130,21 +130,21 @@ class NodeToClassesConverter {
     }
 
     private fun reformatName(name: String): String {
-        return when {
-            name.isEmpty() -> BaseClassModelPrinter.OBJECT_NAME_DEFAULT
-            name.contains(BaseClassModelPrinter.UNDERLINE_CHAR) -> {
-                val namePart = name.split(BaseClassModelPrinter.UNDERLINE_CHAR)
-                val nameBuilder = StringBuilder()
-                namePart.forEachIndexed { index, s ->
-                    if (index == 0) {
-                        nameBuilder.append(s)
-                    } else {
-                        nameBuilder.append(s.capitalize())
-                    }
-                }
-                nameBuilder.toString()
+        val parts = name.split(Regex("[^\\p{L}\\p{N}_$]+"))
+                .flatMap { it.split(BaseClassModelPrinter.UNDERLINE_CHAR) }
+                .filter { it.isNotEmpty() }
+        val camelCase = parts.mapIndexed { index, part ->
+            if (index == 0) part else part.replaceFirstChar { it.uppercase() }
+        }.joinToString("")
+        if (camelCase.isEmpty()) return BaseClassModelPrinter.OBJECT_NAME_DEFAULT
+
+        return buildString {
+            camelCase.forEachIndexed { index, char ->
+                val validStart = char == '_' || char.isLetter()
+                val validPart = validStart || char.isDigit()
+                if (index == 0 && !validStart) append('_')
+                append(if (validPart) char else '_')
             }
-            else -> name
         }
     }
 
@@ -171,7 +171,7 @@ class NodeToClassesConverter {
         val count = map[newName]
         return if (count == null) {
             map[newName] = 1
-            if(RESERVED_WORDS.contains(name)) {
+            if(RESERVED_WORDS.contains(newName)) {
                 "${newName}0"
             } else {
                 newName

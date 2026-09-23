@@ -48,7 +48,7 @@ abstract class BaseClassModelPrinter {
         builder.append(
                 TABULATION,
                 SERIALIZED_TAG_START, // @SerializedName('
-                name,
+                escapeJavaString(name),
                 SERIALIZED_TAG_END, // )
                 LINE_BREAK
         )
@@ -56,6 +56,19 @@ abstract class BaseClassModelPrinter {
 
     abstract fun build(): StringBuilder
     protected abstract fun addField(field: FieldModel)
+
+    private fun escapeJavaString(value: String): String = buildString {
+        value.forEach { char ->
+            when (char) {
+                '\\' -> append("\\\\")
+                '"' -> append("\\\"")
+                '\n' -> append("\\n")
+                '\r' -> append("\\r")
+                '\t' -> append("\\t")
+                else -> append(char)
+            }
+        }
+    }
 
     companion object {
         const val IMPORT_GSON = "import com.google.gson.annotations.SerializedName;\r\n"

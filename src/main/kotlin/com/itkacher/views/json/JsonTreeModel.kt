@@ -34,9 +34,7 @@ class JsonTreeModel(json: JsonNode) : DefaultTreeModel(JsonTreeModel.buildTree("
         private fun buildTree(name: String, node: JsonNode, maxValueLength: AtomicInteger = AtomicInteger(0), isArrayElement: Boolean = false): JsonMutableTreeNode {
             val parentType = if (node.isArray) JsonMutableTreeNode.NodeType.ARRAY else JsonMutableTreeNode.NodeType.OBJECT
             val treeNode = JsonMutableTreeNode(name, node, parentType, maxValueLength, isArrayElement)
-            val it = node.fields()
-            while (it.hasNext()) {
-                val entry = it.next()
+            node.properties().forEach { entry ->
                 if (entry.value.isValueNode) {
                     if (maxValueLength.get().compareTo(entry.key.length) == -1) {
                         maxValueLength.set(entry.key.length)

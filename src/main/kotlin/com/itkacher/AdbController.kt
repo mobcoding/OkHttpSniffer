@@ -18,10 +18,11 @@ package com.itkacher
 import com.android.ddmlib.AndroidDebugBridge
 import com.android.ddmlib.Client
 import com.android.ddmlib.IDevice
+import com.android.ddmlib.logcat.LogCatListener
 import com.android.ddmlib.logcat.LogCatMessage
-import com.android.tools.idea.logcat.AndroidLogcatService
+import com.android.ddmlib.logcat.LogCatReceiverTask
+import com.intellij.openapi.Disposable
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.wm.ToolWindow
 import com.itkacher.data.DebugDevice
 import com.itkacher.data.DebugProcess
 import com.itkacher.data.MessageType
@@ -33,85 +34,127 @@ import java.util.concurrent.Executors
 import javax.swing.DefaultComboBoxModel
 import javax.swing.SwingUtilities
 
-class AdbController(val mainForm: MainForm, project: Project, val preferences: PluginPreferences, toolWindow: ToolWindow) {
+class AdbController(val mainForm: MainForm, project: Project, val preferences: PluginPreferences) : Disposable {
 
-    private val logCatListener = AndroidLogcatService.getInstance()
-
+    @Volatile
     private var selectedDevice: IDevice? = null
+    @Volatile
     private var selectedProcess: DebugProcess? = null
+    @Volatile
+    private var captureGeneration = 0L
+    private var logCatReceiverTask: LogCatReceiverTask? = null
+    private var updatingDeviceList = false
+    private var updatingProcessList = false
+    private val requestDataSource = RequestDataSource()
 
-    val requestTableController = FormViewController(mainForm, preferences, project)
+    val requestTableController = FormViewController(mainForm, project, requestDataSource)
 
     private val executor = Executors.newFixedThreadPool(1)
+    private val logCatExecutor = Executors.newCachedThreadPool()
 
-    private val deviceListener = object : AndroidLogcatService.LogcatListener {
-        override fun onLogLineReceived(line: LogCatMessage) {
-            executor.execute {
-                val tag = line.tag
-                val selected = selectedProcess
-                if (selected != null && selected.pid == line.pid && tag.startsWith(TAG_KEY)) {
-                    val sequences = tag.split(TAG_DELIMITER)
-                    if (sequences.size == 3) {
-                        val id = sequences[1]
-                        val messageType = MessageType.fromString(sequences[2])
-                        val debugRequest = RequestDataSource.getRequestFromMessage(id, messageType, line.message)
-                        if (debugRequest != null) {
-                            try {
+    private val deviceSelectionListener = java.awt.event.ItemListener { event ->
+        if (event.stateChange == ItemEvent.SELECTED && !updatingDeviceList) {
+            (event.item as? DebugDevice)?.let { debugDevice ->
+                captureGeneration++
+                preferences.setSelectedDevice(debugDevice.device.name)
+                requestTableController.clear()
+                attachToDevice(debugDevice.device)
+            }
+        }
+    }
+
+    private val processSelectionListener = java.awt.event.ItemListener { event ->
+        if (event.stateChange == ItemEvent.SELECTED && !updatingProcessList) {
+            (event.item as? DebugProcess)?.let { process ->
+                captureGeneration++
+                preferences.setSelectedProcessPackage(process.getClientKey())
+                selectedProcess = process
+                requestTableController.clear()
+                log("selectedProcess $process")
+            }
+        }
+    }
+
+    private val deviceChangeListener = object : AndroidDebugBridge.IDeviceChangeListener {
+        override fun deviceChanged(device: IDevice?, changeMask: Int) {
+            log("deviceChanged $device")
+            updateDeviceList(AndroidDebugBridge.getBridge()?.devices)
+        }
+
+        override fun deviceConnected(device: IDevice?) {
+            log("deviceConnected $device")
+            updateDeviceList(AndroidDebugBridge.getBridge()?.devices)
+        }
+
+        override fun deviceDisconnected(device: IDevice?) {
+            log("deviceDisconnected $device")
+            updateDeviceList(AndroidDebugBridge.getBridge()?.devices)
+        }
+    }
+
+    private val bridgeChangeListener = AndroidDebugBridge.IDebugBridgeChangeListener { bridge ->
+        val devices = bridge?.devices
+        if (devices?.isNotEmpty() == true) {
+            log("addDebugBridgeChangeListener $bridge")
+            updateDeviceList(devices)
+        } else {
+            log("addDebugBridgeChangeListener EMPTY $bridge and connected ${bridge?.isConnected}")
+            updateDeviceList(devices)
+        }
+    }
+
+    private val clientChangeListener = AndroidDebugBridge.IClientChangeListener { client, _ ->
+        updateClient(client)
+    }
+
+    private val deviceListener = object : LogCatListener {
+        override fun log(messages: List<LogCatMessage>) {
+            messages.forEach { line ->
+                val generation = captureGeneration
+                executor.execute {
+                    if (generation != captureGeneration) return@execute
+                    val tag = line.header.tag
+                    val selected = selectedProcess
+                    if (selected != null && selected.pid == line.header.pid && tag.startsWith(TAG_KEY)) {
+                        val sequences = tag.split(TAG_DELIMITER)
+                        if (sequences.size == 3) {
+                            val id = sequences[1]
+                            val messageType = MessageType.fromString(sequences[2])
+                            val debugRequest = requestDataSource.getRequestFromMessage(id, messageType, line.message)
+                            if (debugRequest != null) {
                                 SwingUtilities.invokeLater {
-                                    requestTableController.insertOrUpdate(debugRequest)
+                                    if (generation == captureGeneration) {
+                                        requestTableController.insertOrUpdate(debugRequest)
+                                    }
                                 }
-                            } catch (e: Exception) {
-                                e.printStackTrace()
                             }
                         }
                     }
                 }
             }
         }
-
-        override fun onCleared() {}
     }
 
     init {
+        mainForm.deviceList.addItemListener(deviceSelectionListener)
+        mainForm.appList.addItemListener(processSelectionListener)
         initDeviceList(project)
     }
 
     private fun initDeviceList(project: Project) {
-        AndroidDebugBridge.addDeviceChangeListener(object : AndroidDebugBridge.IDeviceChangeListener {
-            override fun deviceChanged(device: IDevice?, p1: Int) {
-                log("deviceChanged $device")
-                device?.let {
-                    attachToDevice(device)
-                }
-            }
-
-            override fun deviceConnected(device: IDevice?) {
-                log("deviceConnected $device")
-                updateDeviceList(AndroidDebugBridge.getBridge()?.devices)
-            }
-
-            override fun deviceDisconnected(device: IDevice?) {
-                log("deviceDisconnected $device")
-                updateDeviceList(AndroidDebugBridge.getBridge()?.devices)
-            }
-        })
-        AndroidDebugBridge.addDebugBridgeChangeListener {
-            val devices = it?.devices
-            if (devices?.isNotEmpty() == true) {
-                log("addDebugBridgeChangeListener $it")
-                updateDeviceList(devices)
-            } else {
-                log("addDebugBridgeChangeListener EMPTY $it and connected ${it?.isConnected}")
-            }
-        }
-        AndroidDebugBridge.addClientChangeListener { client: Client?, _: Int ->
-            updateClient(client)
-        }
+        AndroidDebugBridge.addDeviceChangeListener(deviceChangeListener)
+        AndroidDebugBridge.addDebugBridgeChangeListener(bridgeChangeListener)
+        AndroidDebugBridge.addClientChangeListener(clientChangeListener)
         val bridge0: AndroidDebugBridge? = AndroidSdkUtils.getDebugBridge(project)
         log("initDeviceList bridge0 ${bridge0?.isConnected}")
+        updateDeviceList(bridge0?.devices)
     }
 
     private fun updateClient(client: Client?) {
+        if (!SwingUtilities.isEventDispatchThread()) {
+            SwingUtilities.invokeLater { updateClient(client) }
+            return
+        }
         val prefSelectedPackage = preferences.getSelectedProcessPackage()
         val clientData = client?.clientData
         val clientModel = mainForm.appList.model
@@ -121,7 +164,7 @@ class AdbController(val mainForm: MainForm, project: Project, val preferences: P
                 if (model.pid == clientData.pid) {
                     log("updateClient ${clientData.pid}")
                     model.packageName = clientData.packageName
-                    model.clientDescription = clientData.clientDescription
+                    model.clientDescription = clientData.processName
                     if (model.getClientKey() == prefSelectedPackage) {
                         mainForm.appList.selectedItem = model
                         selectedProcess = model
@@ -135,10 +178,14 @@ class AdbController(val mainForm: MainForm, project: Project, val preferences: P
     }
 
     private fun updateDeviceList(devices: Array<IDevice>?) {
+        if (!SwingUtilities.isEventDispatchThread()) {
+            SwingUtilities.invokeLater { updateDeviceList(devices) }
+            return
+        }
         log("updateDeviceList ${devices?.size}")
         val selectedDeviceName = preferences.getSelectedDevice()
         var selectedDevice: IDevice? = null
-        if (devices != null) {
+        if (!devices.isNullOrEmpty()) {
             mainForm.mainContainer.isVisible = true
             val debugDevices = ArrayList<DebugDevice>()
             for (device in devices) {
@@ -150,15 +197,14 @@ class AdbController(val mainForm: MainForm, project: Project, val preferences: P
             }
             val model = DefaultComboBoxModel<DebugDevice>(debugDevices.toTypedArray())
             val list = mainForm.deviceList
-            list.model = model
-            list.addItemListener {
-                if (it.stateChange == ItemEvent.SELECTED) {
-                    log("Selected ${list.selectedItem}")
-                    val device = list.selectedItem as DebugDevice
-                    attachToDevice(device.device)
-                    preferences.setSelectedDevice(device.device.name)
-                    requestTableController.clear()
+            updatingDeviceList = true
+            try {
+                list.model = model
+                selectedDevice?.let { current ->
+                    list.selectedItem = debugDevices.firstOrNull { it.device == current }
                 }
+            } finally {
+                updatingDeviceList = false
             }
             if (selectedDevice != null) {
                 attachToDevice(selectedDevice)
@@ -168,11 +214,24 @@ class AdbController(val mainForm: MainForm, project: Project, val preferences: P
                 }
             }
         } else {
+            stopLogCatReceiver()
+            selectedDevice = null
+            selectedProcess = null
+            requestTableController.clear()
             mainForm.mainContainer.isVisible = false
         }
     }
 
     private fun attachToDevice(device: IDevice) {
+        if (!SwingUtilities.isEventDispatchThread()) {
+            SwingUtilities.invokeLater { attachToDevice(device) }
+            return
+        }
+        val deviceChanged = selectedDevice?.serialNumber != device.serialNumber
+        if (deviceChanged) {
+            captureGeneration++
+            requestTableController.clear()
+        }
         createProcessList(device)
         setListener(device)
     }
@@ -187,7 +246,7 @@ class AdbController(val mainForm: MainForm, project: Project, val preferences: P
             val process = DebugProcess(
                     clientData.pid,
                     clientData.packageName,
-                    clientData.clientDescription
+                    clientData.processName
             )
             if (prefSelectedPackage == process.getClientKey()) {
                 defaultSelection = process
@@ -196,24 +255,14 @@ class AdbController(val mainForm: MainForm, project: Project, val preferences: P
             debugProcessList.add(process)
         }
         val model = DefaultComboBoxModel<DebugProcess>(debugProcessList.toTypedArray())
-        mainForm.appList.model = model
-        mainForm.appList.addItemListener {
-            if (it.stateChange == ItemEvent.SELECTED) {
-                val client = mainForm.appList.selectedItem as DebugProcess
-                preferences.setSelectedProcessPackage(client.getClientKey())
-                defaultSelection = client
-                selectedProcess = client
-                log("selectedProcess $defaultSelection")
-                requestTableController.clear()
-//                requestTableController.addAll(RequestDataSource.getRequestList(client.getClientKey()))
-            }
+        updatingProcessList = true
+        try {
+            mainForm.appList.model = model
+            mainForm.appList.selectedItem = defaultSelection ?: debugProcessList.firstOrNull()
+        } finally {
+            updatingProcessList = false
         }
-        if (defaultSelection != null) {
-            mainForm.appList.selectedItem = defaultSelection
-            selectedProcess = defaultSelection
-        } else {
-            selectedProcess = debugProcessList.firstOrNull()
-        }
+        selectedProcess = defaultSelection ?: debugProcessList.firstOrNull()
     }
 
 
@@ -223,11 +272,14 @@ class AdbController(val mainForm: MainForm, project: Project, val preferences: P
 
     private fun setListener(device: IDevice) {
         log(device.toString())
-        val prevDevice = selectedDevice
-        if (prevDevice != null) {
-            logCatListener.removeListener(prevDevice, deviceListener)
+        if (selectedDevice?.serialNumber == device.serialNumber && logCatReceiverTask != null) {
+            return
         }
-        logCatListener.addListener(device, deviceListener)
+        stopLogCatReceiver()
+        val receiverTask = LogCatReceiverTask(device)
+        receiverTask.addLogCatListener(deviceListener)
+        logCatReceiverTask = receiverTask
+        logCatExecutor.execute(receiverTask)
         selectedDevice = device
         val clients = device.clients
         if (clients != null) {
@@ -235,6 +287,28 @@ class AdbController(val mainForm: MainForm, project: Project, val preferences: P
                 updateClient(client)
             }
         }
+    }
+
+    override fun dispose() {
+        captureGeneration++
+        mainForm.deviceList.removeItemListener(deviceSelectionListener)
+        mainForm.appList.removeItemListener(processSelectionListener)
+        AndroidDebugBridge.removeDeviceChangeListener(deviceChangeListener)
+        AndroidDebugBridge.removeDebugBridgeChangeListener(bridgeChangeListener)
+        AndroidDebugBridge.removeClientChangeListener(clientChangeListener)
+        stopLogCatReceiver()
+        executor.shutdownNow()
+        logCatExecutor.shutdownNow()
+        requestTableController.dispose()
+        requestDataSource.clear()
+    }
+
+    private fun stopLogCatReceiver() {
+        logCatReceiverTask?.let { task ->
+            task.removeLogCatListener(deviceListener)
+            task.stop()
+        }
+        logCatReceiverTask = null
     }
 
     companion object {

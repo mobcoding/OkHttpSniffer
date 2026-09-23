@@ -22,15 +22,11 @@ import com.itkacher.data.generation.FieldType
 class JavaModelPrinter(private val classModels: List<ObjectClassModel>) : BaseClassModelPrinter() {
 
     override fun addImport() {
-        builder.append(IMPORT_NULLABLE)
         builder.append(IMPORT_LIST)
         super.addImport()
     }
 
     override fun addField(field: FieldModel) {
-        if (!field.type.isJavaPrimitive) {
-            addNullableAnnotation()
-        }
         addSerializationAnnotation(field.originName)
         builder.append(
                 TABULATION,
@@ -54,15 +50,6 @@ class JavaModelPrinter(private val classModels: List<ObjectClassModel>) : BaseCl
             return field.genericType.javaWrapper
         }
         return field.type.javaWrapper
-    }
-
-    private fun addNullableAnnotation(): JavaModelPrinter {
-        builder.append(
-                TABULATION,
-                NULLABLE_ANNOTATION,
-                LINE_BREAK
-        )
-        return this
     }
 
     override fun build(): StringBuilder {
@@ -97,9 +84,7 @@ class JavaModelPrinter(private val classModels: List<ObjectClassModel>) : BaseCl
     }
 
     companion object {
-        const val IMPORT_NULLABLE = "import android.support.annotation.Nullable;\r\n"
         const val CONST_VISIBILITY = "private "
-        const val NULLABLE_ANNOTATION = "@Nullable"
         const val SPACE = " "
     }
 }

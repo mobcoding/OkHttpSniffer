@@ -62,7 +62,6 @@ class JTreeMenuMouseAdapter(private val listener: JTreeItemMenuListener) : Mouse
         javaClassItem.addActionListener {
             listener.createJavaModel(treeNode)
         }
-        popup.add(javaClassItem)
         val kotlinClassItem = JMenuItem(Resources.getString("jtree_popup_create_kotlin_class"))
         kotlinClassItem.addActionListener {
             listener.createKotlinModel(treeNode)

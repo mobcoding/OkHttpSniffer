@@ -28,7 +28,8 @@ class Resources {
         }
 
         fun getIcon(key: String) : Icon {
-            return IconLoader.findIcon("/icons/$key") ?: throw FileNotFoundException("Icon $key not found")
+            return IconLoader.findIcon("/icons/$key", Resources::class.java.classLoader)
+                    ?: throw FileNotFoundException("Icon $key not found")
         }
     }
 }

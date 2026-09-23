@@ -16,68 +16,44 @@
 package com.itkacher.data
 
 import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
 
 class RequestDataSource {
+    private val requestMapById = HashMap<String, DebugRequest>()
+    private val lock = ReentrantLock()
 
-    companion object {
-
-        private val requestMapById = HashMap<String, DebugRequest>()
-        private val reentrantLock = ReentrantLock()
-
-        fun getRequestFromMessage(id: String, type: MessageType, message: String): DebugRequest? {
-            try {
-                if (type != MessageType.UNKNOWN) {
-                    try {
-                        reentrantLock.lock()
-                        val request = requestMapById[id]
-                        return if (request == null) {
-                            val newRequest = DebugRequest(id)
-                            fillRequest(type, newRequest, message)
-                            requestMapById[id] = newRequest
-                            newRequest
-                        } else {
-                            fillRequest(type, request, message)
-                            request
-                        }
-                    } finally {
-                        reentrantLock.unlock()
-                    }
-                }
-            } catch (e: NumberFormatException) {
-                e.printStackTrace()
-            }
-            return null
-        }
-
-        private fun fillRequest(messageType: MessageType, request: DebugRequest, message: String) {
-            when (messageType) {
-                MessageType.REQUEST_URL -> request.url = message
-                MessageType.REQUEST_METHOD -> request.method = message
-                MessageType.REQUEST_TIME -> request.requestTime = message
-                MessageType.REQUEST_BODY -> request.addRequestBody(message)
-                MessageType.REQUEST_HEADER -> request.addRequestHeader(message)
-                MessageType.REQUEST_END -> request.addRequestHeader(message)
-                MessageType.RESPONSE_TIME -> request.duration = message
-                MessageType.RESPONSE_STATUS -> {
-                    try {
-                        request.responseCode = message.toInt()
-                    } catch (_: NumberFormatException) {
-                    }
-                }
-                MessageType.RESPONSE_HEADER -> request.addResponseHeader(message)
-                MessageType.RESPONSE_BODY -> request.addResponseBody(message)
-                MessageType.RESPONSE_ERROR -> request.errorMessage = message
-                MessageType.RESPONSE_END -> request.closeResponse()
-                else -> {
-                    request.trash(message)
-                }
-            }
-        }
-
-        fun clear() {
-            requestMapById.clear()
+    fun getRequestFromMessage(id: String, type: MessageType, message: String): DebugRequest? {
+        if (type == MessageType.UNKNOWN) return null
+        return lock.withLock {
+            val request = requestMapById.getOrPut(id) { DebugRequest(id) }
+            fillRequest(type, request, message)
+            request
         }
     }
 
+    private fun fillRequest(messageType: MessageType, request: DebugRequest, message: String) {
+        when (messageType) {
+            MessageType.REQUEST_URL -> request.url = message
+            MessageType.REQUEST_METHOD -> request.method = message
+            MessageType.REQUEST_TIME -> request.requestTime = message
+            MessageType.REQUEST_BODY -> request.addRequestBody(message)
+            MessageType.REQUEST_HEADER -> request.addRequestHeader(message)
+            MessageType.REQUEST_END -> Unit
+            MessageType.RESPONSE_TIME -> request.duration = message
+            MessageType.RESPONSE_STATUS -> request.responseCode = message.toIntOrNull()
+            MessageType.RESPONSE_HEADER -> request.addResponseHeader(message)
+            MessageType.RESPONSE_BODY -> request.addResponseBody(message)
+            MessageType.RESPONSE_ERROR -> request.errorMessage = message
+            MessageType.RESPONSE_END -> request.closeResponse()
+            else -> {
+                request.trash(message)
+            }
+        }
+    }
 
+    fun clear() {
+        lock.withLock {
+            requestMapById.clear()
+        }
+    }
 }

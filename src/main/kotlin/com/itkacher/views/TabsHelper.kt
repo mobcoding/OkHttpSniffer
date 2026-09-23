@@ -33,6 +33,7 @@ import java.awt.Dimension
 import java.io.IOException
 import java.util.*
 import java.util.concurrent.*
+import java.util.concurrent.atomic.AtomicLong
 import javax.swing.JLabel
 import javax.swing.SwingUtilities
 import kotlin.collections.HashMap
@@ -44,7 +45,11 @@ class TabsHelper(private val tabbedPane: JBTabbedPane,
     private val executor = Executors.newFixedThreadPool(3)
 
     @Volatile
+    private var disposed = false
+
+    @Volatile
     private var currentRequest: DebugRequest? = null
+    private val renderGeneration = AtomicLong()
 
     private val tabTitles = HashMap<Int, String>()
 
@@ -124,11 +129,11 @@ class TabsHelper(private val tabbedPane: JBTabbedPane,
 
     private val contentTypeHeader = "content-type:"
 
-    private fun isAcceptedHeaders(headers: ArrayList<String>): Boolean {
+    private fun isAcceptedHeaders(headers: List<String>): Boolean {
         return headers.isEmpty() || headers.find {
             var res = false
             for (type in acceptedContentTypes) {
-                val text = it.toLowerCase()
+                val text = it.lowercase(Locale.ROOT)
                 if (text.startsWith(contentTypeHeader) && text.contains(type)) {
                     res = true
                 }
@@ -138,9 +143,12 @@ class TabsHelper(private val tabbedPane: JBTabbedPane,
     }
 
     fun fill(debugRequest: DebugRequest) {
-        currentRequest = debugRequest
+        if (disposed) return
         clearTabs(Resources.getString("processing"))
+        currentRequest = debugRequest
+        val generation = renderGeneration.incrementAndGet()
         executor.execute {
+            if (disposed || generation != renderGeneration.get()) return@execute
             //Skip non text response/requests
             val isRequestIsText = isAcceptedHeaders(debugRequest.requestHeaders)
             val isResponseIsText = isAcceptedHeaders(debugRequest.responseHeaders)
@@ -160,7 +168,7 @@ class TabsHelper(private val tabbedPane: JBTabbedPane,
             val responseJsonPair = getTreeModelPrettifyPair(responseBody)
 
             SwingUtilities.invokeLater {
-                if (currentRequest != debugRequest) return@invokeLater
+                if (disposed || generation != renderGeneration.get() || currentRequest !== debugRequest) return@invokeLater
 
                 requestRawForm.setText(debugRequest.getRawRequest())
                 enableTab(indexRequestRawTab)
@@ -288,6 +296,8 @@ class TabsHelper(private val tabbedPane: JBTabbedPane,
     }
 
     fun clearTabs(processingText: String = "") {
+        currentRequest = null
+        renderGeneration.incrementAndGet()
         disableTab(indexRequestRawTab)
         disableTab(indexRequestHeaderTab)
         disableTab(indexRequestTreeTab)
@@ -304,11 +314,18 @@ class TabsHelper(private val tabbedPane: JBTabbedPane,
         requestJsonTreeForm.tree.model = null
 
         requestRawForm.setText(processingText)
-        updateResponseHeaderTab(Collections.singletonList(processingText))
+        updateRequestHeaderTab(Collections.singletonList(processingText))
         responseJsonFormattedForm.setText(processingText)
         responseJsonTreeForm.tree.model = null
 
         errorRawForm.setText(processingText)
+    }
+
+    fun dispose() {
+        disposed = true
+        currentRequest = null
+        renderGeneration.incrementAndGet()
+        executor.shutdownNow()
     }
 
 }

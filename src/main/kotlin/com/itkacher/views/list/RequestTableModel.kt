@@ -64,9 +64,7 @@ class RequestTableModel : DefaultTableModel() {
         requestId2ColumnIndexMap.clear()
         index2RequestMap.clear()
         requestList.clear()
-        while (super.getRowCount().compareTo(0) == 1) {
-            super.removeRow(0)
-        }
+        rowCount = 0
     }
 
     fun getRequest(selectedRow: Int): DebugRequest? {

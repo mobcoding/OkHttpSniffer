@@ -1,58 +1,89 @@
 plugins {
     id 'java'
-    id 'org.jetbrains.intellij' version '0.6.3'
-    id 'org.jetbrains.kotlin.jvm' version '1.3.72'
+    id 'org.jetbrains.intellij.platform' version '2.19.0'
+    id 'org.jetbrains.kotlin.jvm' version '2.4.20'
 }
 
-group 'com.itkacher.okhttpprofiler'
-version '1.0.17'
+group = 'com.itkacher.okhttpprofiler'
+version = '1.0.17'
+
+def studioCompilePath = providers.gradleProperty('StudioCompilePath')
+        .orElse(providers.environmentVariable('ANDROID_STUDIO_HOME'))
+        .getOrNull()
+
+if (!studioCompilePath) {
+    throw new GradleException(
+            'No StudioCompilePath value was set. Set -PStudioCompilePath to an Android Studio installation directory ' +
+                    'or set ANDROID_STUDIO_HOME.'
+    )
+}
+
+def studioDirectory = file(studioCompilePath)
+if (!studioDirectory.isDirectory()) {
+    throw new GradleException("Android Studio directory does not exist: $studioDirectory")
+}
 
 repositories {
     mavenCentral()
-    jcenter()
-}
 
-if (!hasProperty('StudioCompilePath')) {
-    throw new GradleException("No StudioCompilePath value was set, please create gradle.properties file")
+    intellijPlatform {
+        defaultRepositories()
+    }
 }
 
 dependencies {
-    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8"
-    implementation 'com.fasterxml.jackson.core:jackson-databind:2.9.7'
+    implementation 'org.jetbrains.kotlin:kotlin-stdlib:2.4.20'
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.22.3'
 
-    testCompile group: 'junit', name: 'junit', version: '4.12'
-    compileOnly fileTree(dir: "$StudioCompilePath/plugins/android/lib", include: ['*.jar'])
-    compileOnly fileTree(dir: "$StudioCompilePath/lib", include: ['*.jar'])
+    testImplementation 'junit:junit:4.13.2'
+
+    intellijPlatform {
+        local(studioCompilePath)
+        bundledPlugin('org.jetbrains.android')
+    }
 }
 
-intellij {
-    pluginName 'OkHttpProfiler'
-    updateSinceUntilBuild false
-
-    plugins 'android'
-
-    intellij.localPath = project.hasProperty("StudioRunPath") ? StudioRunPath : StudioCompilePath
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
 }
 
-compileKotlin {
-    kotlinOptions.jvmTarget = "1.8"
-}
-compileTestKotlin {
-    kotlinOptions.jvmTarget = "1.8"
-}
-patchPluginXml {
-    changeNotes """
-      Maven migration.<br>
-      """
+kotlin {
+    jvmToolchain(21)
 }
 
-task(verifySetup) {
-    doLast {
-        def ideaJar = "$StudioCompilePath/lib/idea.jar"
-        if (!file(ideaJar).exists()) {
-            throw new GradleException("$ideaJar not found, set StudioCompilePath in gradle.properties")
+tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile).configureEach {
+    compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21
+    }
+}
+
+intellijPlatform {
+    projectName = 'OkHttpProfiler'
+    pluginConfiguration {
+        version = project.version.toString()
+        changeNotes = 'Modernized the Gradle, Kotlin, and IntelliJ Platform build toolchain.'
+        ideaVersion {
+            sinceBuild = '261'
+            untilBuild = provider { null }
         }
     }
 }
 
-compileJava.dependsOn verifySetup
+tasks.register('verifySetup') {
+    doLast {
+        def platformJar = new File(studioDirectory, 'lib/app.jar')
+        def androidPluginJar = new File(studioDirectory, 'plugins/android/lib/android.jar')
+        if (!platformJar.exists() || !androidPluginJar.exists()) {
+            throw new GradleException(
+                    "Android Studio platform files not found under $studioDirectory. " +
+                            'Set StudioCompilePath to an Android Studio installation directory.'
+            )
+        }
+    }
+}
+
+tasks.named('compileJava') {
+    dependsOn('verifySetup')
+}

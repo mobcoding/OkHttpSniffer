@@ -18,14 +18,20 @@ package com.itkacher.data
 import com.itkacher.Resources
 import java.text.SimpleDateFormat
 import java.util.*
+import java.util.concurrent.CopyOnWriteArrayList
 
 data class DebugRequest(val id: String) {
+    @Volatile
     var url: String? = null
+    @Volatile
     var method: String? = null
-    val requestHeaders = ArrayList<String>()
+    val requestHeaders = CopyOnWriteArrayList<String>()
     private val requestBody = StringBuilder()
+    @Volatile
     var duration: String? = null
+    @Volatile
     var responseCode: Int? = null
+    @Volatile
     var requestTime: String? = null
         set(value) {
             field = if (value != null) {
@@ -38,9 +44,11 @@ data class DebugRequest(val id: String) {
                 null
             }
         }
+    @Volatile
     var isClosed = false
-    val responseHeaders = ArrayList<String>()
+    val responseHeaders = CopyOnWriteArrayList<String>()
     private val responseBody = StringBuilder()
+    @Volatile
     var errorMessage: String? = null
 
     private val trash = StringBuilder()
@@ -51,8 +59,9 @@ data class DebugRequest(val id: String) {
         requestHeaders.add(header)
     }
 
+    @Synchronized
     fun addRequestBody(bodyPart: String) {
-        if (!isRequestBodyLimitAchieved && requestBody.length < MAX_BODY_LENGTH) {
+        if (!isRequestBodyLimitAchieved && requestBody.length + bodyPart.length <= MAX_BODY_LENGTH) {
             requestBody.append(bodyPart)
         } else if(!isRequestBodyLimitAchieved){
             requestBody.clear()
@@ -65,8 +74,9 @@ data class DebugRequest(val id: String) {
         responseHeaders.add(header)
     }
 
+    @Synchronized
     fun addResponseBody(bodyPart: String) {
-        if (!isResponseBodyLimitAchieved && responseBody.length < MAX_BODY_LENGTH) {
+        if (!isResponseBodyLimitAchieved && responseBody.length + bodyPart.length <= MAX_BODY_LENGTH) {
             responseBody.append(bodyPart)
         } else if(!isResponseBodyLimitAchieved){
             responseBody.clear()
@@ -79,10 +89,12 @@ data class DebugRequest(val id: String) {
         trash.append(message)
     }
 
+    @Synchronized
     fun getRequestBodyString(): String {
         return requestBody.toString()
     }
 
+    @Synchronized
     fun getResponseBodyString(): String {
         return responseBody.toString()
     }
@@ -91,22 +103,19 @@ data class DebugRequest(val id: String) {
         return "$id $url $duration"
     }
 
+    @Synchronized
     fun getRawRequest(): String? {
-        return getRawDataString(requestHeaders, requestBody).toString()
+        return getRawDataString(requestHeaders, requestBody, "$method $url").toString()
     }
 
+    @Synchronized
     fun getRawResponse(): String? {
-        val data = getRawDataString(responseHeaders, responseBody)
-        data.insert(0, SPACE)
-        data.insert(0, responseCode)
-        return data.toString()
+        return getRawDataString(responseHeaders, responseBody, responseCode?.toString().orEmpty()).toString()
     }
 
-    private fun getRawDataString(headers: List<String>, body: StringBuilder): StringBuilder {
+    private fun getRawDataString(headers: List<String>, body: StringBuilder, startLine: String): StringBuilder {
         val builder = StringBuilder()
-        builder.append(method)
-                .append(SPACE)
-                .append(url)
+        builder.append(startLine)
                 .append(NEW_LINE)
                 .append(NEW_LINE)
         for (requestHeader in headers) {
@@ -124,7 +133,7 @@ data class DebugRequest(val id: String) {
 
     fun isFallenDown(): Boolean {
         val code = responseCode
-        return code?.compareTo(400) == 1 || isClosed && errorMessage != null
+        return (code != null && code >= 400) || (isClosed && errorMessage != null)
     }
 
     fun isValid(): Boolean {

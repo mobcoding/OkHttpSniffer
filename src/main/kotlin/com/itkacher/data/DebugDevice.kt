@@ -23,7 +23,8 @@ data class DebugDevice(
 ) {
     override fun toString(): String {
         return if(device.isEmulator) {
-            "Emulator ${device.avdName.safe()} Android ${device.getProperty(IDevice.PROP_BUILD_VERSION).safe()}, API ${device.getProperty(IDevice.PROP_BUILD_API_LEVEL).safe()}"
+            val emulatorName = device.getProperty(IDevice.PROP_DEVICE_MODEL).safe().replace("_", " ")
+            "Emulator $emulatorName Android ${device.getProperty(IDevice.PROP_BUILD_VERSION).safe()}, API ${device.getProperty(IDevice.PROP_BUILD_API_LEVEL).safe()}"
         } else {
             val deviceName = device.name.safe().replace("_", " ")
             val shortened = if(deviceName.length > 20) {
@@ -31,7 +32,7 @@ data class DebugDevice(
             } else {
                 deviceName
             }
-            "${shortened.capitalize()} Android ${device.getProperty(IDevice.PROP_BUILD_VERSION).safe()}, API ${device.getProperty(IDevice.PROP_BUILD_API_LEVEL).safe()}"
+            "${shortened.replaceFirstChar { it.uppercase() }} Android ${device.getProperty(IDevice.PROP_BUILD_VERSION).safe()}, API ${device.getProperty(IDevice.PROP_BUILD_API_LEVEL).safe()}"
         }
     }
 }

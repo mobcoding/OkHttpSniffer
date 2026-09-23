@@ -5,7 +5,8 @@ workspace.xml
 local.properties
 
 .gradle
-gradle.properties
+.intellijPlatform/
+*.hprof
 
 build/
 
