@@ -8,7 +8,7 @@ plugins {
 }
 
 group = System.getenv("GROUP") ?: "com.github.mobcoding"
-version = System.getenv("VERSION") ?: "1.1.2"
+version = System.getenv("VERSION") ?: "1.1.3"
 
 extensions.configure<LibraryExtension> {
     namespace = "io.nerdythings.okhttp.profiler"

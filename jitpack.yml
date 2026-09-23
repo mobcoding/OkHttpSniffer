@@ -1,4 +1,4 @@
 jdk:
   - openjdk17
 install:
-  - cd runtime && ./gradlew clean :library:assembleRelease :library:publishReleasePublicationToMavenLocal --stacktrace --no-daemon
+  - cd runtime && bash ./gradlew clean :library:assembleRelease :library:publishReleasePublicationToMavenLocal --stacktrace --no-daemon

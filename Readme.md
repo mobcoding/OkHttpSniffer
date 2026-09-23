@@ -41,7 +41,7 @@ Add the OkHttpSniffer runtime library to the app module:
 
 ```kotlin
 dependencies {
-    debugImplementation("com.github.mobcoding:OkHttpSniffer:1.1.2")
+    debugImplementation("com.github.mobcoding:OkHttpSniffer:1.1.3")
 }
 ```
 
