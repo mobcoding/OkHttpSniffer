@@ -1,0 +1,21 @@
+<p>Inspect Android app HTTP requests and responses directly in Android Studio.</p>
+<p>OkHttpSniffer displays traffic from OkHttp clients instrumented with its companion Android interceptor. Inspect API calls alongside your code, including Retrofit calls made through the configured OkHttp client.</p>
+<ul>
+  <li>View request methods, URLs, response status codes, and recorded durations.</li>
+  <li>Inspect request and response headers, raw bodies, formatted JSON, and JSON trees.</li>
+  <li>Copy request URLs, response bodies, and cURL commands.</li>
+  <li>Generate Java or Kotlin Gson models from JSON nodes.</li>
+  <li>Select a connected Android device and an available app process.</li>
+</ul>
+<h3>Requirements</h3>
+<p>Android Studio, a connected device or emulator, and a debuggable Android app using the companion interceptor. The runtime is published on JitPack as <code>com.github.mobcoding:OkHttpSniffer:1.1.3</code>. It requires Android API 21 or later and an app-provided OkHttp dependency; it is compiled against OkHttp 4.12.0.</p>
+<p>Capture applies only to requests made through the instrumented OkHttp client. This is not a system-wide network sniffer or a TLS interception proxy. Request bodies and responses are subject to capture and display limits.</p>
+<h3>Debug data</h3>
+<p>Enable the interceptor only in debug builds. It writes captured HTTP data to Android Logcat, which the IDE plugin reads through ADB. Headers and bodies may contain credentials or personal data; use test data and redact exports before sharing them.</p>
+<h3>Links</h3>
+<ul>
+  <li><a href="https://github.com/mobcoding/OkHttpSniffer">Source code and documentation</a></li>
+  <li><a href="https://github.com/mobcoding/OkHttpSniffer/issues">Report an issue</a></li>
+  <li><a href="https://jitpack.io/#mobcoding/OkHttpSniffer/1.1.3">Android runtime on JitPack</a></li>
+</ul>
+<p>Maintained by mobcoding. Based on the Apache-2.0-licensed OkHttp Profiler project by Eugene Tkachenko and Hanna Tkachenko. This fork is independently maintained.</p>
