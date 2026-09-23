@@ -25,17 +25,31 @@ The plugin ZIP is generated under `build/distributions`.
 
 ## Android App Setup
 
-Add the profiler library to the app module:
+Add JitPack to dependency resolution:
+
+```kotlin
+dependencyResolutionManagement {
+    repositories {
+        google()
+        mavenCentral()
+        maven(url = "https://jitpack.io")
+    }
+}
+```
+
+Add the OkHttpSniffer runtime library to the app module:
 
 ```kotlin
 dependencies {
-    debugImplementation("io.nerdythings:okhttp-profiler:1.1.1")
+    debugImplementation("com.github.mobcoding:OkHttpSniffer:1.1.2")
 }
 ```
 
 Add the interceptor only to debug builds:
 
 ```kotlin
+import io.nerdythings.okhttp.profiler.OkHttpProfilerInterceptor
+
 val client = OkHttpClient.Builder().apply {
     if (BuildConfig.DEBUG) {
         addInterceptor(OkHttpProfilerInterceptor())
@@ -46,6 +60,8 @@ val client = OkHttpClient.Builder().apply {
 For Retrofit, pass this client to `Retrofit.Builder.client(client)`.
 
 Do not enable the profiler interceptor in release builds because captured requests may contain sensitive data.
+
+The JitPack artifact is built from the standalone Android library under `runtime/library`. The Android Studio plugin and runtime library remain independently buildable.
 
 ## License
 

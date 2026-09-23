@@ -1,0 +1,7 @@
+OkHttpSniffer
+Copyright 2026 mobcoding
+
+The runtime library includes source derived from OkHttp Profiler:
+https://github.com/itkacher/OkHttpProfiler
+
+OkHttp Profiler is licensed under the Apache License, Version 2.0.

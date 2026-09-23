@@ -2,7 +2,7 @@
     <id>com.itkacher.okhttpprofiler</id>
     <name>OkHttp Profiler</name>
     <vendor email="admin@localebro.com" url="http://localebro.com">localebro.com</vendor>
-    <version>1.0.17</version>
+    <version>1.0.18</version>
     <idea-version since-build="261"/>
     <description><![CDATA[
     <p>Created by <a href="https://localebro.com">LocaleBro</a> team.</p>

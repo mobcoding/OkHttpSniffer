@@ -5,7 +5,7 @@ plugins {
 }
 
 group = 'com.itkacher.okhttpprofiler'
-version = '1.0.17'
+version = '1.0.18'
 
 def studioCompilePath = providers.gradleProperty('StudioCompilePath')
         .orElse(providers.environmentVariable('ANDROID_STUDIO_HOME'))
@@ -63,7 +63,7 @@ intellijPlatform {
     projectName = 'OkHttpProfiler'
     pluginConfiguration {
         version = project.version.toString()
-        changeNotes = 'Modernized the Gradle, Kotlin, and IntelliJ Platform build toolchain.'
+        changeNotes = 'Published the Android runtime library through JitPack and updated integration guidance.'
         ideaVersion {
             sinceBuild = '261'
             untilBuild = provider { null }
