@@ -15,6 +15,8 @@
  */
 package com.itkacher.views.form;
 
+import com.intellij.icons.AllIcons;
+import com.intellij.util.ui.JBUI;
 import com.itkacher.Resources;
 import com.itkacher.data.DebugDevice;
 import com.itkacher.data.DebugProcess;
@@ -39,36 +41,37 @@ public class MainForm {
     private final JButton donateButton;
 
     public MainForm() {
-        localizeButton = new JButton();
-        localizeButton.setPreferredSize(new Dimension(200,30));
-        localizeButton.setIcon(Resources.Companion.getIcon("localebro.png"));
-//        localizeButton.setOpaque(true);
-//        localizeButton.setBorder(null);
-//        localizeButton.setBackground(JBColor.WHITE);
-//        localizeButton.setForeground(JBColor.DARK_GRAY);
-        localizeButton.setText(Resources.Companion.getString("localize"));
+        buttonContainer.setLayout(new FlowLayout(FlowLayout.RIGHT, JBUI.scale(2), JBUI.scale(2)));
+        buttonContainer.setBorder(JBUI.Borders.emptyRight(6));
+
+        localizeButton = createToolbarButton(
+                AllIcons.General.Language,
+                Resources.Companion.getString("tooltip_localize")
+        );
         GridBagConstraints localeBroConstraints = new GridBagConstraints();
         localeBroConstraints.gridx = 0;
         localeBroConstraints.gridy = 0;
 
-        donateButton = new JButton();
-        donateButton.setPreferredSize(new Dimension(100,30));
-        donateButton.setText(Resources.Companion.getString("donate"));
-        donateButton.setIcon(Resources.Companion.getIcon("donate.png"));
+        donateButton = createToolbarButton(
+                AllIcons.Nodes.Favorite,
+                Resources.Companion.getString("tooltip_support")
+        );
         GridBagConstraints donateButtonConstraints = new GridBagConstraints();
         donateButtonConstraints.gridx = 1;
         donateButtonConstraints.gridy = 0;
 
-        scrollToBottomButton = new JButton();
-        scrollToBottomButton.setIcon(Resources.Companion.getIcon("scroll.png"));
-        scrollToBottomButton.setPreferredSize(new Dimension(30,30));
+        scrollToBottomButton = createToolbarButton(
+                AllIcons.Actions.MoveDown,
+                Resources.Companion.getString("tooltip_scroll_to_bottom")
+        );
         GridBagConstraints scrollConstraints = new GridBagConstraints();
         scrollConstraints.gridx = 2;
         scrollConstraints.gridy = 0;
 
-        clearButton = new JButton();
-        clearButton.setPreferredSize(new Dimension(30,30));
-        clearButton.setIcon(Resources.Companion.getIcon("delete.png"));
+        clearButton = createToolbarButton(
+                AllIcons.General.Delete,
+                Resources.Companion.getString("tooltip_clear_requests")
+        );
         GridBagConstraints clearConstraints = new GridBagConstraints();
         clearConstraints.gridx = 3;
         clearConstraints.gridy = 0;
@@ -100,6 +103,22 @@ public class MainForm {
             }
         }
 
+    }
+
+    private static JButton createToolbarButton(Icon icon, String tooltip) {
+        JButton button = new JButton(icon);
+        button.setText(null);
+        Dimension size = JBUI.size(26);
+        button.setPreferredSize(size);
+        button.setMinimumSize(size);
+        button.setMaximumSize(size);
+        button.setMargin(JBUI.insets(5));
+        button.setFocusable(false);
+        button.setRolloverEnabled(true);
+        button.putClientProperty("JButton.buttonType", "toolBarButton");
+        button.setToolTipText(tooltip);
+        button.getAccessibleContext().setAccessibleName(tooltip);
+        return button;
     }
 
     public JPanel getPanel() {

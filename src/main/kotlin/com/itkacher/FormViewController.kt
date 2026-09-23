@@ -70,7 +70,8 @@ class FormViewController(
         requestTable.setDefaultRenderer(Any::class.java, RequestTableCellRenderer())
         requestTable.selectionModel = ForcedListSelectionModel()
         resizeTableColumnsWidth()
-        form.localizeButton.text = Resources.getString("localize") + " " + project.name;
+        form.localizeButton.toolTipText = Resources.getString("tooltip_localize") + ": " + project.name
+        form.localizeButton.accessibleContext.accessibleName = form.localizeButton.toolTipText
         form.localizeButton.addActionListener {
             BrowserUtil.open("https://localebro.com/?utm_source=OkHttpProfiler&utm_medium=IDE&utm_campaign=localize-button")
         }
