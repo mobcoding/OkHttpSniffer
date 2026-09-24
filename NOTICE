@@ -1,6 +1,10 @@
 OkHttpSniffer
 Copyright 2026 mobcoding
 
+The Android Studio plugin includes source derived from the OkHttp Profiler plugin:
+https://github.com/gektor650/OkHttpProfiler-AndroidStudio-Plugin
+Copyright 2018 LocaleBro.com [Ievgenii Tkachenko]
+
 The runtime library includes source derived from OkHttp Profiler:
 https://github.com/itkacher/OkHttpProfiler
 

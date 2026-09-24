@@ -1,84 +1,53 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>No data found</title>
-    <style>
-        .code {
-            padding:10px;
-            background:#ccdcde45;
-            color:blue;
-            display: inline-block;
-        }
-    </style>
-</head>
-<body style="padding:10px;">
+<head><meta charset="UTF-8"><title>OkHttpSniffer</title></head>
+<body>
+<h1>OkHttpSniffer</h1>
+<p>No captured requests yet. Connect a device or emulator, select the app process, and trigger a request through an instrumented OkHttp client.</p>
+<h3>1. Install the IDE plugin</h3>
+<p>Install OkHttpSniffer in a supported Android Studio version and restart the IDE if prompted. Open an Android project. If you previously installed OkHttp Profiler, disable it while trying this fork to avoid duplicate tool windows.</p>
+<h3>2. Add the Android runtime</h3>
+<p>Add JitPack to your project's <code>settings.gradle.kts</code> dependency repositories:</p>
+<pre><code>dependencyResolutionManagement {
+    repositories {
+        google()
+        mavenCentral()
+        maven(url = "https://jitpack.io")
+    }
+}</code></pre>
+<p>Add the runtime to the app module's <code>build.gradle.kts</code>:</p>
+<pre><code>dependencies {
+    debugImplementation("com.github.mobcoding:OkHttpSniffer:1.1.3")
+}</code></pre>
+<p>Your app must also supply OkHttp. The runtime is compiled against OkHttp 4.12.0 and uses Kotlin 2.2.0; ensure your app's Kotlin compiler can read its metadata. Do not keep the original okhttp-profiler dependency alongside this one, because the public package names are preserved.</p>
+<h3>3. Keep interceptor references in debug sources</h3>
+<p>Create <code>app/src/debug/java/com/example/app/network/HttpDebug.kt</code>, using your own package name:</p>
+<pre><code>package com.example.app.network
 
-<h1>OkHttpSniffer Plugin</h1>
-<h2>
-    We don't receive any data from your android device.
-</h2>
-<p>OkHttp Profiler plugin can show request from okhttp library directly in your Android Studio toolwindow.
-    It supports okhttp v3 (<a href="http://square.github.io/okhttp/" rel="nofollow">http://square.github.io/okhttp/</a>)
-    or Retrofit v2 (<a href="https://square.github.io/retrofit/" rel="nofollow">https://square.github.io/retrofit/</a>)
-</p>
-<hr>
-<h2>Add JitPack to dependency resolution</h2>
-<div class="code">maven { url = uri("https://jitpack.io") }</div>
-<h2>Include the runtime library in your app build.gradle file</h2>
-<div class="code">debugImplementation("com.github.mobcoding:OkHttpSniffer:1.1.3")</div>
-<p>and add Interceptor to okHttpClient in code</p>
-<h2>For OkHttp</h2>
-<h3>Java</h3>
-<div class="code">
-    OkHttpClient.Builder builder = new OkHttpClient.Builder();<br/>
-    if (BuildConfig.DEBUG) {<br/>
-    &emsp;builder.addInterceptor(new OkHttpProfilerInterceptor());<br/>
-    }<br/>
-    OkHttpClient client = builder.build();<br/>
-</div>
-<h3>Kotlin</h3>
-<div class="code">
-    val builder = OkHttpClient.Builder()<br/>
-    if (BuildConfig.DEBUG) {<br/>
-    &emsp;builder.addInterceptor(OkHttpProfilerInterceptor())<br/>
-    }<br/>
-    val client = builder.build()<br/>
-</div>
-<h2>
-    For Retrofit
-</h2>
-<h3>
-    Java
-</h3>
-<div class="code">
-    OkHttpClient.Builder builder = new OkHttpClient.Builder();<br/>
-    if (BuildConfig.DEBUG) {<br/>
-    &emsp;builder.addInterceptor(new OkHttpProfilerInterceptor());<br/>
-    }<br/>
-    OkHttpClient client = builder.build();<br/>
-    Retrofit retrofit = new Retrofit.Builder()<br/>
-    &emsp;......<br/>
-    &emsp;.client(client)<br/>
-    &emsp;.build();<br/>
-</div>
-<h3>
-    Kotlin
-</h3>
-<div class="code">
-    val builder = OkHttpClient.Builder()<br/>
-    if (BuildConfig.DEBUG) {<br/>
-    &emsp;builder.addInterceptor(OkHttpProfilerInterceptor())<br/>
-    }<br/>
-    val client = builder.build()<br/>
-    val retrofit = Retrofit.Builder()<br/>
-    &emsp;......<br/>
-    &emsp;.client(client)<br/>
-    &emsp;.build()<br/>
-</div>
+import io.nerdythings.okhttp.profiler.OkHttpProfilerInterceptor
+import okhttp3.OkHttpClient
 
-<p>
-    More details: <a href="https://github.com/mobcoding/OkHttpSniffer">https://github.com/mobcoding/OkHttpSniffer</a>
-</p>
+internal fun OkHttpClient.Builder.configureHttpDebug(): OkHttpClient.Builder =
+    addInterceptor(OkHttpProfilerInterceptor())</code></pre>
+<p>Create the release counterpart at <code>app/src/release/java/com/example/app/network/HttpDebug.kt</code>:</p>
+<pre><code>package com.example.app.network
+
+import okhttp3.OkHttpClient
+
+internal fun OkHttpClient.Builder.configureHttpDebug(): OkHttpClient.Builder = this</code></pre>
+<p>In shared app code, import the helper and configure the client used by your requests:</p>
+<pre><code>import com.example.app.network.configureHttpDebug
+
+val client = OkHttpClient.Builder()
+    .configureHttpDebug()
+    .build()</code></pre>
+<p>For Retrofit, pass this client to <code>Retrofit.Builder().client(client)</code>. Add a matching no-op helper for any other non-debug build types. A <code>BuildConfig.DEBUG</code> branch in shared sources does not make a debug-only dependency available to the release compiler.</p>
+<h3>4. Inspect requests</h3>
+<p>Connect an Android device with debugging authorized, or start an emulator. Run the debuggable app, open the OkHttpSniffer tool window, select its device and process, and trigger a request through the configured client. Select a request to inspect its headers, body, or JSON view.</p>
+<p>To export data, right-click a request for copy actions or a JSON node for model generation. Generated models use Gson annotations; review the generated types before use.</p>
+<h3>5. If no requests appear</h3>
+<p>Check the device authorization, selected process, debug runtime dependency, and the exact OkHttp client instance used by the app. The runtime emits Logcat entries whose tags start with <code>OKPRFL_</code>. It does not capture WebView, other clients, or traffic from apps without the interceptor.</p>
+<p>Maintained by mobcoding. Based on the Apache-2.0-licensed OkHttp Profiler project.</p>
+<p><a href="https://github.com/mobcoding/OkHttpSniffer">Documentation and source code</a></p>
 </body>
 </html>

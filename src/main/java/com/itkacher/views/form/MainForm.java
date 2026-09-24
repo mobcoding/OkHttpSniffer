@@ -45,7 +45,7 @@ public class MainForm {
         buttonContainer.setBorder(JBUI.Borders.emptyRight(6));
 
         localizeButton = createToolbarButton(
-                AllIcons.General.Language,
+                AllIcons.Actions.Help,
                 Resources.Companion.getString("tooltip_localize")
         );
         GridBagConstraints localeBroConstraints = new GridBagConstraints();
@@ -53,7 +53,7 @@ public class MainForm {
         localeBroConstraints.gridy = 0;
 
         donateButton = createToolbarButton(
-                AllIcons.Nodes.Favorite,
+                AllIcons.General.BalloonInformation,
                 Resources.Companion.getString("tooltip_support")
         );
         GridBagConstraints donateButtonConstraints = new GridBagConstraints();

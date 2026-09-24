@@ -18,10 +18,10 @@ IDE 插件与 Android 运行时库分别构建和管理版本，二者的版本�
 
 | 组件 | 当前版本 | 获取方式 |
 | --- | --- | --- |
-| Android Studio 插件 | `1.0.19` | 从源码构建 ZIP，再从磁盘安装 |
+| Android Studio 插件 | `1.2.0` | 从源码构建 ZIP，再从磁盘安装 |
 | Android 运行时库 | `1.1.3` | [JitPack](https://jitpack.io/#mobcoding/OkHttpSniffer/1.1.3) |
 
-本项目尚未发布为独立的 JetBrains Marketplace 条目。当前插件包仍保留上游的 ID `com.itkacher.okhttpprofiler`、名称及 Vendor，IDE 内显示为 **OkHttp Profiler**。发布准备和待办见 [Marketplace 提交指南](marketplace/提交指南.md)。
+本项目尚未发布为独立的 JetBrains Marketplace 条目。当前上架候选包使用 ID `com.mobcoding.okhttpsniffer`、名称 `OkHttpSniffer` 和 Vendor `mobcoding`，IDE 内显示为 **OkHttpSniffer**。发布准备和待办见 [Marketplace 提交指南](marketplace/提交指南.md)。
 
 ## 环境要求
 
@@ -34,9 +34,9 @@ IDE 插件与 Android 运行时库分别构建和管理版本，二者的版本�
 
 1. 按下方“从源码构建”生成插件 ZIP。
 2. 在 Android Studio 中打开 **Settings → Plugins → 齿轮菜单 → Install Plugin from Disk…**，选择 `build/distributions` 中本次生成的 ZIP。
-3. 按 IDE 提示重启，打开 Android 项目，在 **View → Tool Windows → OkHttp Profiler** 中打开工具窗口。
+3. 按 IDE 提示重启，打开 Android 项目，在 **View → Tool Windows → OkHttpSniffer** 中打开工具窗口。
 
-当前包与上游使用相同插件 ID，不能作为两个独立插件共存；不要将它当成已完成独立命名的 Marketplace 发行版。Android 运行时 AAR 不能作为 IDE 插件安装。
+上架候选包使用独立插件 ID；如果同时安装上游 OkHttp Profiler，两个工具窗口可以同时出现，测试时建议只启用一个。Android 运行时 AAR 不能作为 IDE 插件安装。
 
 ## Android 应用接入
 
@@ -108,7 +108,7 @@ val client = OkHttpClient.Builder()
 ### 3. 查看请求
 
 1. 连接设备或启动模拟器，运行应用的 debug 版本。
-2. 打开当前名为 **OkHttp Profiler** 的工具窗口，选择目标设备和应用进程。
+2. 打开当前名为 **OkHttpSniffer** 的工具窗口，选择目标设备和应用进程。
 3. 在应用中发起请求，选中列表项查看请求头、响应体和 JSON。
 4. 右键请求使用复制功能；右键 JSON 节点生成 Java/Kotlin 模型。生成的模型使用 Gson 注解，请在使用前检查字段类型和项目依赖。
 
@@ -138,7 +138,7 @@ val client = OkHttpClient.Builder()
 .\gradlew.bat clean test buildPlugin verifyPluginStructure -PStudioCompilePath="C:\Program Files\Android\Android Studio"
 ```
 
-也可以通过 `ANDROID_STUDIO_HOME` 环境变量提供安装路径。当前输出为 `build/distributions/OkHttpProfiler-1.0.19.zip`；不要误用仓库中遗留的其他版本 ZIP。
+也可以通过 `ANDROID_STUDIO_HOME` 环境变量提供安装路径。当前输出为 `build/distributions/OkHttpSniffer-1.2.0.zip`；不要误用仓库中遗留的其他版本 ZIP。
 
 `verifyPluginStructure` 仅检查包结构，不能替代 Plugin Verifier 的 API 兼容性检查或实际设备抓包验证。
 

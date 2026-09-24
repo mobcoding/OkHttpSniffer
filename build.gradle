@@ -4,8 +4,8 @@ plugins {
     id 'org.jetbrains.kotlin.jvm' version '2.4.20'
 }
 
-group = 'com.itkacher.okhttpprofiler'
-version = '1.0.19'
+group = 'com.mobcoding.okhttpsniffer'
+version = '1.2.0'
 
 def studioCompilePath = providers.gradleProperty('StudioCompilePath')
         .orElse(providers.environmentVariable('ANDROID_STUDIO_HOME'))
@@ -40,6 +40,7 @@ dependencies {
     intellijPlatform {
         local(studioCompilePath)
         bundledPlugin('org.jetbrains.android')
+        pluginVerifier()
     }
 }
 
@@ -60,10 +61,16 @@ tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile).configureEach
 }
 
 intellijPlatform {
-    projectName = 'OkHttpProfiler'
+    projectName = 'OkHttpSniffer'
+    pluginVerification {
+        ides {
+            local(studioCompilePath)
+        }
+    }
     pluginConfiguration {
         version = project.version.toString()
-        changeNotes = 'Published the Android runtime library through JitPack and updated integration guidance.'
+        description = providers.fileContents(layout.projectDirectory.file('marketplace/description.html')).asText
+        changeNotes = providers.fileContents(layout.projectDirectory.file('marketplace/change-notes.html')).asText
         ideaVersion {
             sinceBuild = '261'
             untilBuild = provider { null }
