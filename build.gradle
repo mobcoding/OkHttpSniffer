@@ -5,7 +5,7 @@ plugins {
 }
 
 group = 'com.mobcoding.okhttpsniffer'
-version = '1.2.0'
+version = '1.2.1'
 
 def studioCompilePath = providers.gradleProperty('StudioCompilePath')
         .orElse(providers.environmentVariable('ANDROID_STUDIO_HOME'))
