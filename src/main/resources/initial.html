@@ -1,12 +1,32 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><meta charset="UTF-8"><title>OkHttpSniffer</title></head>
+<head>
+<meta charset="UTF-8">
+<title>OkHttpSniffer</title>
+<style type="text/css">
+body { margin: 10px; }
+h1 { font-size: 24pt; margin-top: 16px; margin-bottom: 24px; }
+h2 { font-size: 16pt; margin-top: 24px; margin-bottom: 12px; }
+h3 { font-size: 13pt; margin-top: 20px; margin-bottom: 12px; }
+p { margin-top: 12px; margin-bottom: 16px; }
+a { color: #589dff; text-decoration: underline; }
+code { font-family: monospace; color: #0033aa; background-color: #d0dfe2; }
+pre { font-family: monospace; color: #0033aa; background-color: #d0dfe2; padding: 14px; margin-top: 12px; margin-bottom: 20px; }
+</style>
+</head>
 <body>
-<h1>OkHttpSniffer</h1>
+<h1>OkHttpSniffer Plugin</h1>
+<h3><a href="https://github.com/mobcoding/OkHttpSniffer/blob/main/Readme.md">Documentation and installation guide</a></h3>
+<h3><a href="https://jitpack.io/#mobcoding/OkHttpSniffer/1.1.4">OkHttpSniffer runtime library on JitPack</a></h3>
+<p>Maintained by <a href="https://github.com/mobcoding">mobcoding</a>.
+Based on <a href="https://github.com/itkacher/OkHttpProfiler">OkHttp Profiler</a> by Eugene Tkachenko and Hanna Tkachenko.</p>
 <p>No captured requests yet. Connect a device or emulator, select the app process, and trigger a request through an instrumented OkHttp client.</p>
+<p>OkHttpSniffer shows request and response information from <a href="https://square.github.io/okhttp/">OkHttp</a>
+directly in your Android Studio tool window. It also supports <a href="https://square.github.io/retrofit/">Retrofit</a>
+requests made through the configured OkHttp client.</p>
 <h3>1. Install the IDE plugin</h3>
 <p>Install OkHttpSniffer in a supported Android Studio version and restart the IDE if prompted. Open an Android project. If you previously installed OkHttp Profiler, disable it while trying this fork to avoid duplicate tool windows.</p>
-<h3>2. Add the Android runtime</h3>
+<h3>2. For installation, include the runtime library in your app build.gradle.kts file</h3>
 <p>Add JitPack to your project's <code>settings.gradle.kts</code> dependency repositories:</p>
 <pre><code>dependencyResolutionManagement {
     repositories {
@@ -19,8 +39,10 @@
 <pre><code>dependencies {
     debugImplementation("com.github.mobcoding:OkHttpSniffer:1.1.4")
 }</code></pre>
-<p>Your app must also supply OkHttp. The runtime is compiled against OkHttp 4.12.0 and uses Kotlin 2.2.0; ensure your app's Kotlin compiler can read its metadata. Do not keep the original okhttp-profiler dependency alongside this one, because the public package names are preserved.</p>
-<h3>3. Keep interceptor references in debug sources</h3>
+<p>Your app must also supply <a href="https://square.github.io/okhttp/">OkHttp</a>. The runtime is compiled against <code>OkHttp 4.12.0</code> and uses <code>Kotlin 2.2.0</code>; ensure your app's Kotlin compiler can read its metadata. Do not keep the original <code>io.nerdythings:okhttp-profiler</code> dependency alongside this one, because the public package names are preserved.</p>
+<h2>For OkHttp</h2>
+<h3>Kotlin</h3>
+<p>Add the interceptor in debug sources, and provide a no-op helper in release sources.</p>
 <p>Create <code>app/src/debug/java/com/example/app/network/HttpDebug.kt</code>, using your own package name:</p>
 <pre><code>package com.example.app.network
 
@@ -41,13 +63,52 @@ internal fun OkHttpClient.Builder.configureHttpDebug(): OkHttpClient.Builder = t
 val client = OkHttpClient.Builder()
     .configureHttpDebug()
     .build()</code></pre>
-<p>For Retrofit, pass this client to <code>Retrofit.Builder().client(client)</code>. Add a matching no-op helper for any other non-debug build types. A <code>BuildConfig.DEBUG</code> branch in shared sources does not make a debug-only dependency available to the release compiler.</p>
+<p>Add a matching no-op helper for any other non-debug build types. A <code>BuildConfig.DEBUG</code> branch in shared sources does not make a debug-only dependency available to the release compiler.</p>
+<h3>Java</h3>
+<p>Create <code>app/src/debug/java/com/example/app/network/HttpDebug.java</code>:</p>
+<pre><code>package com.example.app.network;
+
+import io.nerdythings.okhttp.profiler.OkHttpProfilerInterceptor;
+import okhttp3.OkHttpClient;
+
+public final class HttpDebug {
+    public static OkHttpClient.Builder configure(OkHttpClient.Builder builder) {
+        return builder.addInterceptor(new OkHttpProfilerInterceptor());
+    }
+}</code></pre>
+<p>Create the release counterpart at <code>app/src/release/java/com/example/app/network/HttpDebug.java</code>:</p>
+<pre><code>package com.example.app.network;
+
+import okhttp3.OkHttpClient;
+
+public final class HttpDebug {
+    public static OkHttpClient.Builder configure(OkHttpClient.Builder builder) {
+        return builder;
+    }
+}</code></pre>
+<p>In shared Java code:</p>
+<pre><code>import com.example.app.network.HttpDebug;
+import okhttp3.OkHttpClient;
+
+OkHttpClient client = HttpDebug.configure(new OkHttpClient.Builder()).build();</code></pre>
+<h2>For Retrofit</h2>
+<p>Pass the configured client to your <a href="https://square.github.io/retrofit/">Retrofit</a> builder:</p>
+<h3>Kotlin</h3>
+<pre><code>val retrofit = Retrofit.Builder()
+    .baseUrl("https://example.com/")
+    .client(client)
+    .build()</code></pre>
+<h3>Java</h3>
+<pre><code>Retrofit retrofit = new Retrofit.Builder()
+    .baseUrl("https://example.com/")
+    .client(client)
+    .build();</code></pre>
 <h3>4. Inspect requests</h3>
 <p>Connect an Android device with debugging authorized, or start an emulator. Run the debuggable app, open the OkHttpSniffer tool window, select its device and process, and trigger a request through the configured client. Select a request to inspect its headers, body, or JSON view.</p>
 <p>To export data, right-click a request for copy actions or a JSON node for model generation. Generated models use Gson annotations; review the generated types before use.</p>
 <h3>5. If no requests appear</h3>
 <p>Check the device authorization, selected process, debug runtime dependency, and the exact OkHttp client instance used by the app. The runtime emits Logcat entries whose tags start with <code>OKPRFL_</code>. It does not capture WebView, other clients, or traffic from apps without the interceptor.</p>
-<p>Maintained by mobcoding. Based on the Apache-2.0-licensed OkHttp Profiler project.</p>
+<p>Licensed under <a href="https://github.com/mobcoding/OkHttpSniffer/blob/main/LICENSE">Apache License 2.0</a>.</p>
 <p><a href="https://github.com/mobcoding/OkHttpSniffer">Documentation and source code</a></p>
 </body>
 </html>

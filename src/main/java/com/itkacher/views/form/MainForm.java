@@ -82,6 +82,7 @@ public class MainForm {
         buttonContainer.add(clearButton, clearConstraints);
 
         initialHtml.setEditorKit(JEditorPane.createEditorKitForContentType("text/html"));
+        initialHtml.putClientProperty(JEditorPane.HONOR_DISPLAY_PROPERTIES, Boolean.TRUE);
         initialHtml.setEditable(false);
 
         initialHtml.addHyperlinkListener(e -> {
