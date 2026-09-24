@@ -1,6 +1,6 @@
 package com.itkacher.data
 
-import com.itkacher.Resources
+import com.fasterxml.jackson.databind.ObjectMapper
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -32,12 +32,18 @@ class DebugRequestTest {
     }
 
     @Test
-    fun `body chunk crossing limit is replaced by limit message`() {
+    fun `large JSON body survives chunk assembly and remains parseable`() {
         val request = DebugRequest("1")
-
-        request.addRequestBody("a".repeat(DebugRequest.MAX_BODY_LENGTH))
-        request.addRequestBody("b")
-
-        assertEquals(Resources.getString("max_length"), request.getRequestBodyString())
+        val value = "中文响应😀".repeat(100_000)
+        val json = "{\"data\":\"$value\",\"end\":true}"
+        json.chunked(1000).forEach {
+            request.addRequestBody(it)
+            request.addResponseBody(it)
+        }
+        assertEquals(json, request.getRequestBodyString())
+        assertEquals(json, request.getResponseBodyString())
+        val parsed = ObjectMapper().readTree(request.getResponseBodyString())
+        assertEquals(value, parsed["data"].asText())
+        assertTrue(parsed["end"].asBoolean())
     }
 }

@@ -158,14 +158,14 @@ class TabsHelper(private val tabbedPane: JBTabbedPane,
             } else {
                 null
             }
-            val requestJsonPair = getTreeModelPrettifyPair(requestJson)
+            val requestJsonPair = if (debugRequest.isClosed) getTreeModelPrettifyPair(requestJson) else null
             val responseBody = if (isResponseIsText) {
                 debugRequest.getResponseBodyString()
             } else {
                 null
             }
 
-            val responseJsonPair = getTreeModelPrettifyPair(responseBody)
+            val responseJsonPair = if (debugRequest.isClosed) getTreeModelPrettifyPair(responseBody) else null
 
             SwingUtilities.invokeLater {
                 if (disposed || generation != renderGeneration.get() || currentRequest !== debugRequest) return@invokeLater

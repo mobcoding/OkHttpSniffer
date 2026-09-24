@@ -8,7 +8,7 @@ plugins {
 }
 
 group = System.getenv("GROUP") ?: "com.github.mobcoding"
-version = System.getenv("VERSION") ?: "1.1.3"
+version = System.getenv("VERSION") ?: "1.1.4"
 
 extensions.configure<LibraryExtension> {
     namespace = "io.nerdythings.okhttp.profiler"
@@ -46,6 +46,8 @@ kotlin {
 
 dependencies {
     compileOnly("com.squareup.okhttp3:okhttp:4.12.0")
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("com.squareup.okhttp3:okhttp:4.12.0")
 }
 
 afterEvaluate {

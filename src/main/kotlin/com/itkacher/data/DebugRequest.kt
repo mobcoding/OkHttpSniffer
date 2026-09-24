@@ -15,7 +15,6 @@
  */
 package com.itkacher.data
 
-import com.itkacher.Resources
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.CopyOnWriteArrayList
@@ -52,8 +51,6 @@ data class DebugRequest(val id: String) {
     var errorMessage: String? = null
 
     private val trash = StringBuilder()
-    private var isRequestBodyLimitAchieved = false
-    private var isResponseBodyLimitAchieved = false
 
     fun addRequestHeader(header: String) {
         requestHeaders.add(header)
@@ -61,13 +58,7 @@ data class DebugRequest(val id: String) {
 
     @Synchronized
     fun addRequestBody(bodyPart: String) {
-        if (!isRequestBodyLimitAchieved && requestBody.length + bodyPart.length <= MAX_BODY_LENGTH) {
-            requestBody.append(bodyPart)
-        } else if(!isRequestBodyLimitAchieved){
-            requestBody.clear()
-            requestBody.append(Resources.getString("max_length"))
-            isRequestBodyLimitAchieved = true
-        }
+        requestBody.append(bodyPart)
     }
 
     fun addResponseHeader(header: String) {
@@ -76,13 +67,7 @@ data class DebugRequest(val id: String) {
 
     @Synchronized
     fun addResponseBody(bodyPart: String) {
-        if (!isResponseBodyLimitAchieved && responseBody.length + bodyPart.length <= MAX_BODY_LENGTH) {
-            responseBody.append(bodyPart)
-        } else if(!isResponseBodyLimitAchieved){
-            responseBody.clear()
-            responseBody.append(Resources.getString("max_length"))
-            isResponseBodyLimitAchieved = true
-        }
+        responseBody.append(bodyPart)
     }
 
     fun trash(message: String) {
@@ -143,6 +128,5 @@ data class DebugRequest(val id: String) {
     companion object {
         const val SPACE = " "
         const val NEW_LINE = "\r\n"
-        const val MAX_BODY_LENGTH = 300_000
     }
 }

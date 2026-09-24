@@ -15,17 +15,9 @@ import java.io.IOException
 import java.nio.charset.Charset
 
 class LogDataTransfer : DataTransfer {
-    private lateinit var mHandler: Handler
-
-    init {
-        val handlerThread: HandlerThread =
-            object : HandlerThread("OkHttpProfiler", Process.THREAD_PRIORITY_BACKGROUND) {
-                override fun onLooperPrepared() {
-                    mHandler = LogBodyHandler(this.looper)
-                }
-            }
-        handlerThread.start()
-    }
+    private val handlerThread = HandlerThread("OkHttpProfiler", Process.THREAD_PRIORITY_BACKGROUND).apply { start() }
+    // getLooper waits for initialization, so the first response cannot be silently dropped.
+    private val mHandler: Handler = LogBodyHandler(handlerThread.looper)
 
     @Throws(IOException::class)
     override fun sendRequest(id: String, request: Request) {
@@ -77,8 +69,9 @@ class LogDataTransfer : DataTransfer {
 
     @Throws(IOException::class)
     override fun sendResponse(id: String, response: Response) {
-        val responseBodyCopy = response.peekBody(BODY_BUFFER_SIZE.toLong())
-        largeLog(id, MessageType.RESPONSE_BODY, responseBodyCopy.string())
+        response.peekBody(Long.MAX_VALUE).use { responseBodyCopy ->
+            largeLog(id, MessageType.RESPONSE_BODY, responseBodyCopy.string())
+        }
 
         val headers = response.headers
         logWithHandler(id, MessageType.RESPONSE_STATUS, response.code.toString(), 0)
@@ -115,7 +108,6 @@ class LogDataTransfer : DataTransfer {
     }
 
     private fun logWithHandler(id: String?, type: MessageType, message: String, partsCount: Int) {
-        if (!this::mHandler.isInitialized) return
         val handlerMessage = mHandler.obtainMessage()
         val tag = LOG_PREFIX + DELIMITER + id + DELIMITER + type.text
         val bundle = Bundle().apply {
@@ -128,19 +120,8 @@ class LogDataTransfer : DataTransfer {
     }
 
     private fun largeLog(id: String?, type: MessageType, content: String) {
-        val contentLength = content.length
-        if (contentLength > LOG_LENGTH) {
-            val parts = contentLength / LOG_LENGTH
-            for (i in 0..parts) {
-                val start = i * LOG_LENGTH
-                var end = start + LOG_LENGTH
-                if (end > contentLength) {
-                    end = contentLength
-                }
-                logWithHandler(id, type, content.substring(start, end), parts)
-            }
-        } else {
-            logWithHandler(id, type, content, 0)
+        for (part in LogChunks.split(content)) {
+            logWithHandler(id, type, part, content.length / LogChunks.MAX_BYTES)
         }
     }
 
@@ -166,9 +147,7 @@ class LogDataTransfer : DataTransfer {
     }
 
     companion object {
-        private const val LOG_LENGTH = 4000
         private const val SLOW_DOWN_PARTS_AFTER = 20
-        private const val BODY_BUFFER_SIZE = 1024 * 1024 * 10
         private const val LOG_PREFIX = "OKPRFL"
         private const val DELIMITER = "_"
         private const val HEADER_DELIMITER = ':'

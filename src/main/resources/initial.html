@@ -17,7 +17,7 @@
 }</code></pre>
 <p>Add the runtime to the app module's <code>build.gradle.kts</code>:</p>
 <pre><code>dependencies {
-    debugImplementation("com.github.mobcoding:OkHttpSniffer:1.1.3")
+    debugImplementation("com.github.mobcoding:OkHttpSniffer:1.1.4")
 }</code></pre>
 <p>Your app must also supply OkHttp. The runtime is compiled against OkHttp 4.12.0 and uses Kotlin 2.2.0; ensure your app's Kotlin compiler can read its metadata. Do not keep the original okhttp-profiler dependency alongside this one, because the public package names are preserved.</p>
 <h3>3. Keep interceptor references in debug sources</h3>

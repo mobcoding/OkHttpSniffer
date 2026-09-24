@@ -19,7 +19,7 @@ IDE 插件与 Android 运行时库分别构建和管理版本，二者的版本�
 | 组件 | 当前版本 | 获取方式 |
 | --- | --- | --- |
 | Android Studio 插件 | `1.2.0` | 从源码构建 ZIP，再从磁盘安装 |
-| Android 运行时库 | `1.1.3` | [JitPack](https://jitpack.io/#mobcoding/OkHttpSniffer/1.1.3) |
+| Android 运行时库 | `1.1.4` | [JitPack](https://jitpack.io/#mobcoding/OkHttpSniffer/1.1.4) |
 
 本项目尚未发布为独立的 JetBrains Marketplace 条目。当前上架候选包使用 ID `com.mobcoding.okhttpsniffer`、名称 `OkHttpSniffer` 和 Vendor `mobcoding`，IDE 内显示为 **OkHttpSniffer**。发布准备和待办见 [Marketplace 提交指南](marketplace/提交指南.md)。
 
@@ -58,7 +58,7 @@ dependencyResolutionManagement {
 
 ```kotlin
 dependencies {
-    debugImplementation("com.github.mobcoding:OkHttpSniffer:1.1.3")
+    debugImplementation("com.github.mobcoding:OkHttpSniffer:1.1.4")
 }
 ```
 
@@ -120,7 +120,7 @@ val client = OkHttpClient.Builder()
 
 **出现重复类？** 移除原 `io.nerdythings:okhttp-profiler` 依赖，排查其他模块或本地 AAR 是否仍包含相同的运行时类。
 
-**响应内容不完整？** 运行时采集与插件显示存在大小限制，大响应和非文本内容不保证完整展示；请勿将导出的内容当作无损网络记录。
+**响应内容不完整？** 请同时安装重新构建的插件并升级运行时至 `1.1.4`，然后重新发起请求。本版移除了插件 30 万字符和运行时 10 MB 的正文上限，并按日志字节预算切分中文/Emoji。Logcat 仍可能因设备缓冲区覆盖、断连而丢失记录；无限流不适合此全量采集方式，大响应会增加调试应用和 IDE 的内存占用。
 
 ## 调试数据
 
