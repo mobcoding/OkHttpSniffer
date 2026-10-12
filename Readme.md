@@ -18,7 +18,7 @@ IDE 插件与 Android 运行时库分别构建和管理版本，二者的版本�
 
 | 组件 | 当前版本 | 获取方式 |
 | --- | --- | --- |
-| Android Studio 插件 | `1.2.2` | 从源码构建 ZIP，再从磁盘安装 |
+| Android Studio 插件 | `1.2.3` | 从源码构建 ZIP，再从磁盘安装 |
 | Android 运行时库 | `1.1.4` | [JitPack](https://jitpack.io/#mobcoding/OkHttpSniffer/1.1.4) |
 
 本项目尚未发布为独立的 JetBrains Marketplace 条目。当前上架候选包使用 ID `com.mobcoding.okhttpsniffer`、名称 `OkHttpSniffer` 和 Vendor `mobcoding`，IDE 内显示为 **OkHttpSniffer**。发布准备和待办见 [Marketplace 提交指南](marketplace/提交指南.md)。
@@ -138,7 +138,13 @@ val client = OkHttpClient.Builder()
 .\gradlew.bat clean test buildPlugin verifyPluginStructure -PStudioCompilePath="C:\Program Files\Android\Android Studio"
 ```
 
-也可以通过 `ANDROID_STUDIO_HOME` 环境变量提供安装路径。当前输出为 `build/distributions/OkHttpSniffer-1.2.2.zip`；不要误用仓库中遗留的其他版本 ZIP。
+也可以通过 `ANDROID_STUDIO_HOME` 环境变量提供安装路径。当前输出为 `build/distributions/OkHttpSniffer-1.2.3.zip`；不要误用仓库中遗留的其他版本 ZIP。
+
+### 多请求与大响应显示
+
+1.2.3 合并响应分片的界面刷新，在后台准备文本，并取消切换请求后的过时渲染任务，减少 IDE 主线程负担。
+
+Raw 和 Formatted 视图对超过 8192 个 UTF-16 字符单元的文本分页显示，可用 Previous / Next 查看所有页面。数据不会因分页被丢弃；Copy all 复制当前视图的全部文本（Raw 包含状态行和请求头/响应头），列表右键 Copy Response Body 复制完整响应体。JSON 树中的超长值只显示摘要，节点复制和打开功能仍使用完整值。分页保持 emoji 和 CRLF 边界。
 
 `verifyPluginStructure` 仅检查包结构，不能替代 Plugin Verifier 的 API 兼容性检查或实际设备抓包验证。
 

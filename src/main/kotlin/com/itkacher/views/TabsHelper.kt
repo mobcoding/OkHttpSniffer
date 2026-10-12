@@ -25,6 +25,7 @@ import com.itkacher.views.form.HeaderForm
 import com.itkacher.views.form.JsonPlainTextForm
 import com.itkacher.views.form.JsonTreeForm
 import com.itkacher.views.form.RawForm
+import com.itkacher.views.form.responseTextDocument
 import com.itkacher.views.json.JTreeItemMenuListener
 import com.itkacher.views.json.JsonTreeModel
 import com.itkacher.views.json.JTreeMenuMouseAdapter
@@ -42,7 +43,10 @@ import kotlin.collections.HashMap
 class TabsHelper(private val tabbedPane: JBTabbedPane,
                  private val menuListener: JTreeItemMenuListener) {
 
-    private val executor = Executors.newFixedThreadPool(3)
+    private val executor = ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS,
+        LinkedBlockingQueue<Runnable>())
+    private var pendingRender: Future<*>? = null
+    private val objectMapper = ObjectMapper()
 
     @Volatile
     private var disposed = false
@@ -50,6 +54,8 @@ class TabsHelper(private val tabbedPane: JBTabbedPane,
     @Volatile
     private var currentRequest: DebugRequest? = null
     private val renderGeneration = AtomicLong()
+    private var renderingClosedRequest = false
+    private var preservingSelection = false
 
     private val tabTitles = HashMap<Int, String>()
 
@@ -144,11 +150,23 @@ class TabsHelper(private val tabbedPane: JBTabbedPane,
 
     fun fill(debugRequest: DebugRequest) {
         if (disposed) return
-        clearTabs(Resources.getString("processing"))
+        if (currentRequest === debugRequest && renderingClosedRequest) return
+        val selectedTab = tabbedPane.selectedIndex
+        clearTabs(Resources.getString("processing"), preserveSelection = true)
         currentRequest = debugRequest
+        renderingClosedRequest = debugRequest.isClosed
+        val closed = renderingClosedRequest
         val generation = renderGeneration.incrementAndGet()
-        executor.execute {
-            if (disposed || generation != renderGeneration.get()) return@execute
+        pendingRender = executor.submit {
+            fun obsolete() = disposed || generation != renderGeneration.get() || Thread.currentThread().isInterrupted
+            if (obsolete()) return@submit
+            val requestHeaders = debugRequest.requestHeaders.toList()
+            val responseHeaders = debugRequest.responseHeaders.toList()
+            val requestDocument = responseTextDocument(debugRequest.getRawRequest())
+            val responseDocument = if (closed) responseTextDocument(debugRequest.getRawResponse()) else null
+            val error = debugRequest.errorMessage
+            val errorDocument = responseTextDocument(error)
+            if (obsolete()) return@submit
             //Skip non text response/requests
             val isRequestIsText = isAcceptedHeaders(debugRequest.requestHeaders)
             val isResponseIsText = isAcceptedHeaders(debugRequest.responseHeaders)
@@ -158,33 +176,38 @@ class TabsHelper(private val tabbedPane: JBTabbedPane,
             } else {
                 null
             }
-            val requestJsonPair = if (debugRequest.isClosed) getTreeModelPrettifyPair(requestJson) else null
+            val requestJsonPair = if (closed) getTreeModelPrettifyPair(requestJson) else null
+            if (obsolete()) return@submit
             val responseBody = if (isResponseIsText) {
                 debugRequest.getResponseBodyString()
             } else {
                 null
             }
 
-            val responseJsonPair = if (debugRequest.isClosed) getTreeModelPrettifyPair(responseBody) else null
+            val responseJsonPair = if (closed) getTreeModelPrettifyPair(responseBody) else null
+            if (obsolete()) return@submit
+            val requestPrettyDocument = requestJsonPair?.second?.let { responseTextDocument(it) }
+            val responsePrettyDocument = responseJsonPair?.second?.let { responseTextDocument(it) }
+            if (obsolete()) return@submit
 
             SwingUtilities.invokeLater {
                 if (disposed || generation != renderGeneration.get() || currentRequest !== debugRequest) return@invokeLater
 
-                requestRawForm.setText(debugRequest.getRawRequest())
+                requestRawForm.setDocument(requestDocument)
                 enableTab(indexRequestRawTab)
 
-                if (debugRequest.requestHeaders.isNotEmpty()) {
-                    updateRequestHeaderTab(debugRequest.requestHeaders)
+                if (requestHeaders.isNotEmpty()) {
+                    updateRequestHeaderTab(requestHeaders)
                     enableTab(indexRequestHeaderTab)
                 } else {
                     disableTab(indexRequestHeaderTab)
                 }
-                if (debugRequest.isClosed) {
-                    responseRawForm.setText(debugRequest.getRawResponse())
+                if (closed) {
+                    responseRawForm.setDocument(responseDocument!!)
                     enableTab(indexResponseRawTab)
 
-                    if (debugRequest.responseHeaders.isNotEmpty()) {
-                        updateResponseHeaderTab(debugRequest.responseHeaders)
+                    if (responseHeaders.isNotEmpty()) {
+                        updateResponseHeaderTab(responseHeaders)
                         enableTab(indexResponseHeaderTab)
                     } else {
                         disableTab(indexResponseHeaderTab)
@@ -198,7 +221,7 @@ class TabsHelper(private val tabbedPane: JBTabbedPane,
                     }
 
                     if (requestJsonPair?.second != null && requestJsonPair.second != "") {
-                        requestJsonFormattedForm.setText(requestJsonPair.second)
+                        requestJsonFormattedForm.setDocument(requestPrettyDocument!!)
                         enableTab(indexRequestFormattedTab)
                     } else {
                         disableTab(indexRequestFormattedTab)
@@ -212,18 +235,21 @@ class TabsHelper(private val tabbedPane: JBTabbedPane,
                     }
 
                     if (responseJsonPair?.second != null && responseJsonPair.second != "") {
-                        responseJsonFormattedForm.setText(responseJsonPair.second)
+                        responseJsonFormattedForm.setDocument(responsePrettyDocument!!)
                         enableTab(indexResponseFormattedTab)
                     } else {
                         disableTab(indexResponseFormattedTab)
                     }
 
-                    if (debugRequest.errorMessage.isNullOrBlank()) {
+                    if (error.isNullOrBlank()) {
                         disableTab(indexErrorTab)
                     } else {
                         enableTab(indexErrorTab)
-                        errorRawForm.setText(debugRequest.errorMessage)
+                        errorRawForm.setDocument(errorDocument)
                     }
+                }
+                if (selectedTab >= 0 && tabbedPane.isEnabledAt(selectedTab)) {
+                    tabbedPane.selectedIndex = selectedTab
                 }
             }
         }
@@ -254,7 +280,7 @@ class TabsHelper(private val tabbedPane: JBTabbedPane,
         tabbedPane.setEnabledAt(tabIndex, false)
         tabbedPane.setForegroundAt(tabIndex, Color.GRAY)
         tabbedPane.setToolTipTextAt(tabIndex, Resources.getString("empty"))
-        if (tabbedPane.selectedIndex == tabIndex) {
+        if (!preservingSelection && tabbedPane.selectedIndex == tabIndex) {
             tabbedPane.selectedIndex = 0
         }
     }
@@ -262,7 +288,6 @@ class TabsHelper(private val tabbedPane: JBTabbedPane,
     private fun parseModel(jsonString: String): JsonNode? {
         val trimmed = jsonString.trim()
         return if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
-            val objectMapper = ObjectMapper()
             try {
                 objectMapper.readTree(trimmed)
             } catch (e: IOException) {
@@ -275,8 +300,7 @@ class TabsHelper(private val tabbedPane: JBTabbedPane,
 
     private fun prettifyNode(jsonNode: JsonNode): String? {
         return try {
-            val mapper = ObjectMapper()
-            mapper.writerWithDefaultPrettyPrinter().writeValueAsString(jsonNode)
+            objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(jsonNode)
         } catch (e: IOException) {
             e.printStackTrace()
             null
@@ -288,6 +312,7 @@ class TabsHelper(private val tabbedPane: JBTabbedPane,
             val jsonNode = parseModel(requestJson)
             jsonNode?.let {
                 val prettyJson = prettifyNode(it)
+                if (Thread.currentThread().isInterrupted) throw CancellationException()
                 val model = JsonTreeModel(jsonNode)
                 return Pair(model, prettyJson)
             }
@@ -295,9 +320,12 @@ class TabsHelper(private val tabbedPane: JBTabbedPane,
         return null
     }
 
-    fun clearTabs(processingText: String = "") {
+    fun clearTabs(processingText: String = "", preserveSelection: Boolean = false) {
+        pendingRender?.cancel(true)
+        executor.queue.clear()
         currentRequest = null
         renderGeneration.incrementAndGet()
+        preservingSelection = preserveSelection
         disableTab(indexRequestRawTab)
         disableTab(indexRequestHeaderTab)
         disableTab(indexRequestTreeTab)
@@ -307,6 +335,7 @@ class TabsHelper(private val tabbedPane: JBTabbedPane,
         disableTab(indexResponseTreeTab)
         disableTab(indexResponseFormattedTab)
         disableTab(indexErrorTab)
+        preservingSelection = false
 
         responseRawForm.setText(processingText)
         updateResponseHeaderTab(Collections.singletonList(processingText))

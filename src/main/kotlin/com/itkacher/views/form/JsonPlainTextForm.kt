@@ -15,19 +15,16 @@
  */
 package com.itkacher.views.form
 
-import com.itkacher.views.FrameScrollPanel
-import javax.swing.*
 
 class JsonPlainTextForm {
-    private val editorPane = JTextPane()
-    val panel = FrameScrollPanel(editorPane)
-
-    init {
-        editorPane.isEditable = false
-    }
+    private val view = ResponseTextView()
+    val panel = view.panel
 
     fun setText(string: String?) {
-        editorPane.text = string ?: ""
-        editorPane.caretPosition = 0
+        setDocument(responseTextDocument(string))
+    }
+
+    fun setDocument(document: ResponseTextContent) {
+        view.setContent(document)
     }
 }

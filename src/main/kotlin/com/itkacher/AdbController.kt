@@ -28,11 +28,13 @@ import com.itkacher.data.DebugProcess
 import com.itkacher.data.MessageType
 import com.itkacher.data.RequestDataSource
 import com.itkacher.views.form.MainForm
+import com.itkacher.views.PendingRequestUpdates
 import org.jetbrains.android.sdk.AndroidSdkUtils
 import java.awt.event.ItemEvent
 import java.util.concurrent.Executors
 import javax.swing.DefaultComboBoxModel
 import javax.swing.SwingUtilities
+import javax.swing.Timer
 
 class AdbController(val mainForm: MainForm, project: Project, val preferences: PluginPreferences) : Disposable {
 
@@ -51,6 +53,10 @@ class AdbController(val mainForm: MainForm, project: Project, val preferences: P
 
     private val executor = Executors.newFixedThreadPool(1)
     private val logCatExecutor = Executors.newCachedThreadPool()
+    private val pendingUpdates = PendingRequestUpdates()
+    private val updateTimer = Timer(100) {
+        pendingUpdates.drain(captureGeneration).forEach(requestTableController::insertOrUpdate)
+    }
 
     private val deviceSelectionListener = java.awt.event.ItemListener { event ->
         if (event.stateChange == ItemEvent.SELECTED && !updatingDeviceList) {
@@ -109,9 +115,12 @@ class AdbController(val mainForm: MainForm, project: Project, val preferences: P
 
     private val deviceListener = object : LogCatListener {
         override fun log(messages: List<LogCatMessage>) {
-            messages.forEach { line ->
-                val generation = captureGeneration
-                executor.execute {
+            val generation = captureGeneration
+            val pid = selectedProcess?.pid ?: return
+            val relevant = messages.filter { it.header.pid == pid && it.header.tag.startsWith(TAG_KEY) }
+            if (relevant.isEmpty() || executor.isShutdown) return
+            executor.execute {
+                relevant.forEach { line ->
                     if (generation != captureGeneration) return@execute
                     val tag = line.header.tag
                     val selected = selectedProcess
@@ -122,11 +131,7 @@ class AdbController(val mainForm: MainForm, project: Project, val preferences: P
                             val messageType = MessageType.fromString(sequences[2])
                             val debugRequest = requestDataSource.getRequestFromMessage(id, messageType, line.message)
                             if (debugRequest != null) {
-                                SwingUtilities.invokeLater {
-                                    if (generation == captureGeneration) {
-                                        requestTableController.insertOrUpdate(debugRequest)
-                                    }
-                                }
+                                pendingUpdates.offer(generation, debugRequest)
                             }
                         }
                     }
@@ -136,6 +141,11 @@ class AdbController(val mainForm: MainForm, project: Project, val preferences: P
     }
 
     init {
+        updateTimer.start()
+        mainForm.clearButton.addActionListener {
+            captureGeneration++
+            pendingUpdates.clear()
+        }
         mainForm.deviceList.addItemListener(deviceSelectionListener)
         mainForm.appList.addItemListener(processSelectionListener)
         initDeviceList(project)
@@ -290,6 +300,8 @@ class AdbController(val mainForm: MainForm, project: Project, val preferences: P
     }
 
     override fun dispose() {
+        updateTimer.stop()
+        pendingUpdates.clear()
         captureGeneration++
         mainForm.deviceList.removeItemListener(deviceSelectionListener)
         mainForm.appList.removeItemListener(processSelectionListener)

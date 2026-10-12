@@ -42,7 +42,7 @@ class RequestTableModel : DefaultTableModel() {
             super.addRow(getRowData(request))
         } else {
             for ((i, any) in getRowData(request).withIndex()) {
-                setValueAt(any, rowIndex, i)
+                if (getValueAt(rowIndex, i) != any) setValueAt(any, rowIndex, i)
             }
         }
     }

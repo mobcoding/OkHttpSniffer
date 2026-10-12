@@ -75,7 +75,7 @@ class JsonMutableTreeNode : DefaultMutableTreeNode {
     }
 
     override fun toString(): String {
-        return if (type != NodeType.ARRAY && type != NodeType.OBJECT) {
+        val label = if (type != NodeType.ARRAY && type != NodeType.OBJECT) {
             formattedText
         } else if(type == NodeType.ARRAY && isLeaf) {
             var spaces = getSpaces()
@@ -86,11 +86,14 @@ class JsonMutableTreeNode : DefaultMutableTreeNode {
         } else {
             "$name ${getSpaces()} ${type.nodeName}"
         }
+        if (label.length <= 512) return label
+        val end = if (Character.isHighSurrogate(label[511])) 511 else 512
+        return label.take(end) + "… (copy/open for full value)"
     }
 
     private fun getSpaces(): String {
         val spaces = StringBuilder()
-        for (i in name.length until maxLength.get()) {
+        for (i in name.length until minOf(maxLength.get(), 80)) {
             spaces.append(' ')
         }
         return spaces.toString()

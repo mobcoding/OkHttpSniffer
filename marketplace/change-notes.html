@@ -1,6 +1,9 @@
-<p>OkHttpSniffer 1.2.2</p>
+<p>OkHttpSniffer 1.2.3</p>
 <ul>
-  <li>Remove compiler-generated ToolWindowFactory forwarding methods that triggered deprecated and experimental API warnings in Plugin Verifier.</li>
-  <li>Preserve existing tool window initialization and capture behavior.</li>
+  <li>Coalesce incoming capture updates and cancel obsolete detail rendering when switching requests.</li>
+  <li>Prepare response text documents in the background and paginate long text to avoid blocking the IDE during Unicode text layout.</li>
+  <li>Keep complete response data available across pages, with Copy all for the complete displayed text and Copy Response Body for the response body.</li>
+  <li>Bound JSON tree label lengths while preserving complete values for copying and opening.</li>
+  <li>Retain the ToolWindowFactory compatibility fixes from 1.2.2.</li>
 </ul>
 <p>Android runtime dependency remains <code>com.github.mobcoding:OkHttpSniffer:1.1.4</code>.</p>

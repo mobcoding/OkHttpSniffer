@@ -17,6 +17,7 @@ package com.itkacher.views.json
 
 import com.fasterxml.jackson.databind.JsonNode
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.CancellationException
 import javax.swing.tree.DefaultTreeModel
 
 
@@ -32,9 +33,11 @@ class JsonTreeModel(json: JsonNode) : DefaultTreeModel(JsonTreeModel.buildTree("
          * @return root TreeNode
          */
         private fun buildTree(name: String, node: JsonNode, maxValueLength: AtomicInteger = AtomicInteger(0), isArrayElement: Boolean = false): JsonMutableTreeNode {
+            if (Thread.currentThread().isInterrupted) throw CancellationException()
             val parentType = if (node.isArray) JsonMutableTreeNode.NodeType.ARRAY else JsonMutableTreeNode.NodeType.OBJECT
             val treeNode = JsonMutableTreeNode(name, node, parentType, maxValueLength, isArrayElement)
             node.properties().forEach { entry ->
+                if (Thread.currentThread().isInterrupted) throw CancellationException()
                 if (entry.value.isValueNode) {
                     if (maxValueLength.get().compareTo(entry.key.length) == -1) {
                         maxValueLength.set(entry.key.length)
@@ -47,6 +50,7 @@ class JsonTreeModel(json: JsonNode) : DefaultTreeModel(JsonTreeModel.buildTree("
 
             if (node.isArray) {
                 for (i in 0 until node.size()) {
+                    if (Thread.currentThread().isInterrupted) throw CancellationException()
                     val child = node.get(i)
                     val arrayIndex = String.format("[%d]", i)
                     if (maxValueLength.get().compareTo(name.length) == -1) {

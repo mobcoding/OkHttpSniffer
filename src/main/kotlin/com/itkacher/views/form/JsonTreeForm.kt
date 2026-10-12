@@ -25,5 +25,7 @@ class JsonTreeForm {
 
     init {
         tree.font = Font(Font.MONOSPACED, Font.PLAIN, 12)
+        tree.rowHeight = tree.getFontMetrics(tree.font).height + 4
+        tree.isLargeModel = true
     }
 }
