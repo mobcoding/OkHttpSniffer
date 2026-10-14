@@ -1,7 +1,7 @@
-<h3>1. Install the IDE plugin</h3>
-<p>Install OkHttpSniffer in a supported Android Studio version and restart the IDE if prompted. Open an Android project. If you previously installed OkHttp Profiler, disable it while trying this fork to avoid duplicate tool windows.</p>
-<h3>2. Add the Android runtime</h3>
-<p>Add JitPack to your project's <code>settings.gradle.kts</code> dependency repositories:</p>
+<h2>安装插件</h2>
+<p>在 Android Studio 的“设置 → 插件 → 齿轮菜单 → 从磁盘安装插件”中选择插件 ZIP，按提示重启。通过“视图 → 工具窗口 → OkHttpSniffer”打开插件。</p>
+<h2>1. 添加依赖</h2>
+<p>在 <code>settings.gradle.kts</code> 的依赖仓库中添加 <a href="https://jitpack.io/#mobcoding/OkHttpSniffer/1.1.4">JitPack</a>：</p>
 <pre><code>dependencyResolutionManagement {
     repositories {
         google()
@@ -9,13 +9,13 @@
         maven(url = "https://jitpack.io")
     }
 }</code></pre>
-<p>Add the runtime to the app module's <code>build.gradle.kts</code>:</p>
+<p>在应用模块的 <code>build.gradle.kts</code> 中添加：</p>
 <pre><code>dependencies {
     debugImplementation("com.github.mobcoding:OkHttpSniffer:1.1.4")
 }</code></pre>
-<p>Your app must also supply OkHttp. The runtime is compiled against OkHttp 4.12.0 and uses Kotlin 2.2.0; ensure your app's Kotlin compiler can read its metadata. Do not keep the original okhttp-profiler dependency alongside this one, because the public package names are preserved.</p>
-<h3>3. Keep interceptor references in debug sources</h3>
-<p>Create <code>app/src/debug/java/com/example/app/network/HttpDebug.kt</code>, using your own package name:</p>
+<p>应用需已接入 OkHttp，支持 Android 5.0 及以上；构建工具需兼容 Kotlin 2.2.0 和 JVM 17。迁移时移除旧的 <code>io.nerdythings:okhttp-profiler</code> 依赖，避免重复类。</p>
+<h2>2. 配置拦截器</h2>
+<p>以下示例包名请替换为自己的包名。在 <code>src/debug/kotlin/com/example/app/network/HttpDebug.kt</code> 中添加：</p>
 <pre><code>package com.example.app.network
 
 import io.nerdythings.okhttp.profiler.OkHttpProfilerInterceptor
@@ -23,21 +23,23 @@ import okhttp3.OkHttpClient
 
 internal fun OkHttpClient.Builder.configureHttpDebug(): OkHttpClient.Builder =
     addInterceptor(OkHttpProfilerInterceptor())</code></pre>
-<p>Create the release counterpart at <code>app/src/release/java/com/example/app/network/HttpDebug.kt</code>:</p>
+<p>在 <code>src/release/kotlin/com/example/app/network/HttpDebug.kt</code> 中添加空实现：</p>
 <pre><code>package com.example.app.network
 
 import okhttp3.OkHttpClient
 
 internal fun OkHttpClient.Builder.configureHttpDebug(): OkHttpClient.Builder = this</code></pre>
-<p>In shared app code, import the helper and configure the client used by your requests:</p>
+<p>在公共源码中配置实际使用的客户端：</p>
 <pre><code>import com.example.app.network.configureHttpDebug
+import okhttp3.OkHttpClient
 
 val client = OkHttpClient.Builder()
     .configureHttpDebug()
     .build()</code></pre>
-<p>For Retrofit, pass this client to <code>Retrofit.Builder().client(client)</code>. Add a matching no-op helper for any other non-debug build types. A <code>BuildConfig.DEBUG</code> branch in shared sources does not make a debug-only dependency available to the release compiler.</p>
-<h3>4. Inspect requests</h3>
-<p>Connect an Android device with debugging authorized, or start an emulator. Run the debuggable app, open the OkHttpSniffer tool window, select its device and process, and trigger a request through the configured client. Select a request to inspect its headers, body, or JSON view.</p>
-<p>To export data, right-click a request for copy actions or a JSON node for model generation. Generated models use Gson annotations; review the generated types before use.</p>
-<h3>5. If no requests appear</h3>
-<p>Check the device authorization, selected process, debug runtime dependency, and the exact OkHttp client instance used by the app. The runtime emits Logcat entries whose tags start with <code>OKPRFL_</code>. It does not capture WebView, other clients, or traffic from apps without the interceptor.</p>
+<p>使用 <a href="https://square.github.io/retrofit/">Retrofit</a> 时，将此客户端传入 <code>Retrofit.Builder().client(client)</code>。</p>
+<p>不要在公共源码中直接引用拦截器，即使使用 <code>BuildConfig.DEBUG</code> 判断也会导致 release 编译失败。自定义构建类型需提供对应实现。</p>
+<h2>3. 查看请求</h2>
+<p>连接已授权调试的设备或模拟器，运行应用的 debug 版本，在 <code>OkHttpSniffer</code> 工具窗口选择设备和进程，再发起请求。</p>
+<p>点击请求查看响应和 JSON；右键请求可复制完整响应体或 cURL。长文本用 <code>Previous / Next</code> 翻页，<code>Copy all</code> 复制当前视图的全部文本；Raw 视图包含头信息。</p>
+<p>没有请求时，检查所选进程和实际使用的客户端，并在 Logcat 搜索 <code>OKPRFL_</code>。仅捕获接入拦截器的请求；Logcat 丢失或断连可能导致内容不完整。</p>
+<p>仅在调试版本启用，分享截图或日志前请移除 Token、Cookie 等敏感信息。</p>
