@@ -1,7 +1,7 @@
-package io.nerdythings.okhttp.profiler
+package com.mobcoding.okhttpsniffer
 
-import io.nerdythings.okhttp.profiler.transfer.DataTransfer
-import io.nerdythings.okhttp.profiler.transfer.LogDataTransfer
+import com.mobcoding.okhttpsniffer.transfer.DataTransfer
+import com.mobcoding.okhttpsniffer.transfer.LogDataTransfer
 import okhttp3.Interceptor
 import okhttp3.Interceptor.Chain
 import okhttp3.Response

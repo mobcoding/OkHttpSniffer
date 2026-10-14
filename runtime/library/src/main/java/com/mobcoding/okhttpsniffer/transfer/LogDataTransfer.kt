@@ -1,4 +1,4 @@
-package io.nerdythings.okhttp.profiler.transfer
+package com.mobcoding.okhttpsniffer.transfer
 
 import android.annotation.SuppressLint
 import android.os.Bundle

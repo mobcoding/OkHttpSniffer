@@ -3,7 +3,7 @@
 在 Android Studio 中查看 OkHttp 请求、响应和 JSON，支持复制响应体、cURL 和生成模型。
 
 - IDE 插件：`1.2.4`，适用于 Android Studio 261 平台；已验证本机 2026.1.3。
-- Android 依赖：`1.1.4`，支持 Android 5.0 及以上，应用需已有 OkHttp 依赖，构建工具需兼容 Kotlin 2.2.0 和 JVM 17。
+- Android 依赖：`1.1.5`，支持 Android 5.0 及以上，应用需已有 OkHttp 依赖，构建工具需兼容 Kotlin 2.2.0 和 JVM 17。
 
 ## 安装插件
 
@@ -11,7 +11,7 @@
 
 ## 1. 添加依赖
 
-在 `settings.gradle.kts` 中添加 [JitPack](https://jitpack.io/#mobcoding/OkHttpSniffer/1.1.4)：
+在 `settings.gradle.kts` 中添加 [JitPack](https://jitpack.io/#mobcoding/OkHttpSniffer/1.1.5)：
 
 ```kotlin
 dependencyResolutionManagement {
@@ -27,11 +27,11 @@ dependencyResolutionManagement {
 
 ```kotlin
 dependencies {
-    debugImplementation("com.github.mobcoding:OkHttpSniffer:1.1.4")
+    debugImplementation("com.github.mobcoding:OkHttpSniffer:1.1.5")
 }
 ```
 
-迁移时移除旧的 `io.nerdythings:okhttp-profiler` 依赖，避免重复类。新库保留原拦截器包名。
+迁移时移除旧的 `io.nerdythings:okhttp-profiler` 依赖，避免重复类。从旧版升级时，将拦截器 import 改为 `com.mobcoding.okhttpsniffer.OkHttpProfilerInterceptor`；1.1.4 及更早版本使用旧包名。
 
 ## 2. 配置拦截器
 
@@ -42,7 +42,7 @@ dependencies {
 ```kotlin
 package com.example.app.network
 
-import io.nerdythings.okhttp.profiler.OkHttpProfilerInterceptor
+import com.mobcoding.okhttpsniffer.OkHttpProfilerInterceptor
 import okhttp3.OkHttpClient
 
 internal fun OkHttpClient.Builder.configureHttpDebug(): OkHttpClient.Builder =
@@ -85,7 +85,7 @@ val client = OkHttpClient.Builder()
 ## 常见问题
 
 - **没有请求：** 检查设备授权、所选进程和实际使用的 OkHttpClient，或在 Logcat 搜索 `OKPRFL_`。仅捕获接入拦截器的客户端请求。
-- **响应不完整：** 确认依赖为 `1.1.4` 并重新发起请求。Logcat 缓冲区覆盖或断连仍可能丢失数据；无限流不适合全量采集。
+- **响应不完整：** 确认依赖为 `1.1.5` 并重新发起请求。Logcat 缓冲区覆盖或断连仍可能丢失数据；无限流不适合全量采集。
 - **数据安全：** 仅在调试版本启用，分享截图或日志前移除 Token、Cookie 等敏感信息。清空列表不会清除设备 Logcat 或剪贴板。
 
 ## 构建与反馈

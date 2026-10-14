@@ -1,4 +1,4 @@
-package io.nerdythings.okhttp.profiler.transfer
+package com.mobcoding.okhttpsniffer.transfer
 
 enum class MessageType(val text: String) {
     REQUEST_URL("RQU"),

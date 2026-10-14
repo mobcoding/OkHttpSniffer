@@ -1,4 +1,4 @@
-package io.nerdythings.okhttp.profiler.transfer
+package com.mobcoding.okhttpsniffer.transfer
 
 import org.junit.Assert.*
 import org.junit.Test

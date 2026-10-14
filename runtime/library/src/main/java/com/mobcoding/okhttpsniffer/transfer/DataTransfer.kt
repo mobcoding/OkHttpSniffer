@@ -1,4 +1,4 @@
-package io.nerdythings.okhttp.profiler.transfer
+package com.mobcoding.okhttpsniffer.transfer
 
 import okhttp3.Request
 import okhttp3.Response

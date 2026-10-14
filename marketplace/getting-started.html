@@ -1,7 +1,7 @@
 <h2>安装插件</h2>
 <p>在 Android Studio 的“设置 → 插件 → 齿轮菜单 → 从磁盘安装插件”中选择插件 ZIP，按提示重启。通过“视图 → 工具窗口 → OkHttpSniffer”打开插件。</p>
 <h2>1. 添加依赖</h2>
-<p>在 <code>settings.gradle.kts</code> 的依赖仓库中添加 <a href="https://jitpack.io/#mobcoding/OkHttpSniffer/1.1.4">JitPack</a>：</p>
+<p>在 <code>settings.gradle.kts</code> 的依赖仓库中添加 <a href="https://jitpack.io/#mobcoding/OkHttpSniffer/1.1.5">JitPack</a>：</p>
 <pre><code>dependencyResolutionManagement {
     repositories {
         google()
@@ -11,14 +11,15 @@
 }</code></pre>
 <p>在应用模块的 <code>build.gradle.kts</code> 中添加：</p>
 <pre><code>dependencies {
-    debugImplementation("com.github.mobcoding:OkHttpSniffer:1.1.4")
+    debugImplementation("com.github.mobcoding:OkHttpSniffer:1.1.5")
 }</code></pre>
 <p>应用需已接入 OkHttp，支持 Android 5.0 及以上；构建工具需兼容 Kotlin 2.2.0 和 JVM 17。迁移时移除旧的 <code>io.nerdythings:okhttp-profiler</code> 依赖，避免重复类。</p>
 <h2>2. 配置拦截器</h2>
+<p>从 1.1.4 或更早版本升级时，请将旧拦截器 import 替换为以下新包名。</p>
 <p>以下示例包名请替换为自己的包名。在 <code>src/debug/kotlin/com/example/app/network/HttpDebug.kt</code> 中添加：</p>
 <pre><code>package com.example.app.network
 
-import io.nerdythings.okhttp.profiler.OkHttpProfilerInterceptor
+import com.mobcoding.okhttpsniffer.OkHttpProfilerInterceptor
 import okhttp3.OkHttpClient
 
 internal fun OkHttpClient.Builder.configureHttpDebug(): OkHttpClient.Builder =

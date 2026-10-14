@@ -1,4 +1,4 @@
-package io.nerdythings.okhttp.profiler.transfer
+package com.mobcoding.okhttpsniffer.transfer
 
 /** Android's log payload is byte-limited, and JNI encodes strings as modified UTF-8. */
 internal object LogChunks {
