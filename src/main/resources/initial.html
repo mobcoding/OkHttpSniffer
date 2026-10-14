@@ -28,34 +28,25 @@ pre { font-family: monospace; color: #0033aa; background-color: #d0dfe2; padding
 }</code></pre>
 <p>在应用模块的 <code>build.gradle.kts</code> 中添加：</p>
 <pre><code>dependencies {
-    debugImplementation("com.github.mobcoding:OkHttpSniffer:1.1.5")
+    implementation("com.github.mobcoding:OkHttpSniffer:1.1.5")
 }</code></pre>
 <p>应用需已接入 OkHttp，支持 Android 5.0 及以上；构建工具需兼容 Kotlin 2.2.0 和 JVM 17。迁移时移除旧的 <code>io.nerdythings:okhttp-profiler</code> 依赖，避免重复类。</p>
-<h2>2. 配置拦截器</h2>
-<p>从 1.1.4 或更早版本升级时，请将旧拦截器 import 替换为以下新包名。</p>
-<p>以下示例包名请替换为自己的包名。在 <code>src/debug/kotlin/com/example/app/network/HttpDebug.kt</code> 中添加：</p>
-<pre><code>package com.example.app.network
-
+<h2>2. 仅在 Debug 启用</h2>
+<p>在应用模块中配置实际使用的客户端，无需创建 debug/release 两套文件：</p>
+<pre><code>import com.example.app.BuildConfig // 替换为应用模块 namespace 下的 BuildConfig
 import com.mobcoding.okhttpsniffer.OkHttpProfilerInterceptor
 import okhttp3.OkHttpClient
 
-internal fun OkHttpClient.Builder.configureHttpDebug(): OkHttpClient.Builder =
-    addInterceptor(OkHttpProfilerInterceptor())</code></pre>
-<p>在 <code>src/release/kotlin/com/example/app/network/HttpDebug.kt</code> 中添加空实现：</p>
-<pre><code>package com.example.app.network
-
-import okhttp3.OkHttpClient
-
-internal fun OkHttpClient.Builder.configureHttpDebug(): OkHttpClient.Builder = this</code></pre>
-<p>在公共源码中配置实际使用的客户端：</p>
-<pre><code>import com.example.app.network.configureHttpDebug
-import okhttp3.OkHttpClient
-
 val client = OkHttpClient.Builder()
-    .configureHttpDebug()
+    .apply {
+        if (BuildConfig.DEBUG) {
+            addInterceptor(OkHttpProfilerInterceptor())
+        }
+    }
     .build()</code></pre>
+<p>请使用应用模块的 <code>BuildConfig</code>，不要导入依赖库的。若未生成此类，在应用模块的 <code>android { buildFeatures { buildConfig = true } }</code> 中启用。</p>
+<p><code>implementation</code> 确保 Release 编译也能找到拦截器；<code>BuildConfig.DEBUG</code> 为 false 时不添加拦截器、不输出抓包日志。依赖仍参与 Release 构建，R8 可能移除未使用代码，但不保证整个库被移除。不要将此示例的依赖改为 <code>debugImplementation</code>。</p>
 <p>使用 <a href="https://square.github.io/retrofit/">Retrofit</a> 时，将此客户端传入 <code>Retrofit.Builder().client(client)</code>。</p>
-<p>不要在公共源码中直接引用拦截器，即使使用 <code>BuildConfig.DEBUG</code> 判断也会导致 release 编译失败。自定义构建类型需提供对应实现。</p>
 <h2>3. 查看请求</h2>
 <p>连接已授权调试的设备或模拟器，运行应用的 debug 版本，在 <code>OkHttpSniffer</code> 工具窗口选择设备和进程，再发起请求。</p>
 <p>点击请求查看响应和 JSON；右键请求可复制完整响应体或 cURL。长文本用 <code>Previous / Next</code> 翻页，<code>Copy all</code> 复制当前视图的全部文本；Raw 视图包含头信息。</p>

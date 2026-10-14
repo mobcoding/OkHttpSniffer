@@ -2,12 +2,12 @@
 
 在 Android Studio 中查看 OkHttp 请求、响应和 JSON，支持复制响应体、cURL 和生成模型。
 
-- IDE 插件：`1.2.4`，适用于 Android Studio 261 平台；已验证本机 2026.1.3。
+- IDE 插件：`1.2.5`，适用于 Android Studio 261 平台；已验证本机 2026.1.3。
 - Android 依赖：`1.1.5`，支持 Android 5.0 及以上，应用需已有 OkHttp 依赖，构建工具需兼容 Kotlin 2.2.0 和 JVM 17。
 
 ## 安装插件
 
-在 Android Studio 的“设置 → 插件 → 齿轮菜单 → 从磁盘安装插件”中选择 `OkHttpSniffer-1.2.4.zip`，按提示重启。通过“视图 → 工具窗口 → OkHttpSniffer”打开插件。
+在 Android Studio 的“设置 → 插件 → 齿轮菜单 → 从磁盘安装插件”中选择 `OkHttpSniffer-1.2.5.zip`，按提示重启。通过“视图 → 工具窗口 → OkHttpSniffer”打开插件。
 
 ## 1. 添加依赖
 
@@ -27,52 +27,35 @@ dependencyResolutionManagement {
 
 ```kotlin
 dependencies {
-    debugImplementation("com.github.mobcoding:OkHttpSniffer:1.1.5")
+    implementation("com.github.mobcoding:OkHttpSniffer:1.1.5")
 }
 ```
 
 迁移时移除旧的 `io.nerdythings:okhttp-profiler` 依赖，避免重复类。从旧版升级时，将拦截器 import 改为 `com.mobcoding.okhttpsniffer.OkHttpProfilerInterceptor`；1.1.4 及更早版本使用旧包名。
 
-## 2. 配置拦截器
+## 2. 仅在 Debug 启用
 
-以下文件放在应用模块中，示例包名请替换为自己的包名。
-
-`src/debug/kotlin/com/example/app/network/HttpDebug.kt`：
+在应用模块中配置实际使用的客户端，无需创建 debug/release 两套文件：
 
 ```kotlin
-package com.example.app.network
-
+import com.example.app.BuildConfig // 替换为应用模块 namespace 下的 BuildConfig
 import com.mobcoding.okhttpsniffer.OkHttpProfilerInterceptor
 import okhttp3.OkHttpClient
 
-internal fun OkHttpClient.Builder.configureHttpDebug(): OkHttpClient.Builder =
-    addInterceptor(OkHttpProfilerInterceptor())
-```
-
-`src/release/kotlin/com/example/app/network/HttpDebug.kt`：
-
-```kotlin
-package com.example.app.network
-
-import okhttp3.OkHttpClient
-
-internal fun OkHttpClient.Builder.configureHttpDebug(): OkHttpClient.Builder = this
-```
-
-在公共源码中配置实际使用的客户端：
-
-```kotlin
-import com.example.app.network.configureHttpDebug
-import okhttp3.OkHttpClient
-
 val client = OkHttpClient.Builder()
-    .configureHttpDebug()
+    .apply {
+        if (BuildConfig.DEBUG) {
+            addInterceptor(OkHttpProfilerInterceptor())
+        }
+    }
     .build()
 ```
 
-使用 Retrofit 时，将此客户端传入 `Retrofit.Builder().client(client)`。
+请使用应用模块的 `BuildConfig`，不要导入依赖库的。若未生成此类，在应用模块的 `android { buildFeatures { buildConfig = true } }` 中启用。
 
-不要在公共源码中直接引用拦截器，即使使用 `BuildConfig.DEBUG` 判断也会导致 release 编译失败。自定义构建类型需提供对应实现。
+`implementation` 确保 Release 编译也能找到拦截器；`BuildConfig.DEBUG` 为 false 时不添加拦截器、不输出抓包日志。依赖仍参与 Release 构建，R8 可能移除未使用代码，但不保证整个库被移除。不要将此示例的依赖改为 `debugImplementation`。
+
+使用 Retrofit 时，将此客户端传入 `Retrofit.Builder().client(client)`。
 
 ## 3. 查看请求
 
@@ -90,7 +73,7 @@ val client = OkHttpClient.Builder()
 
 ## 构建与反馈
 
-使用 JDK 21，在仓库根目录执行 `.\gradlew.bat test buildPlugin verifyPluginStructure -PStudioCompilePath="C:\Program Files\Android\Android Studio"`，产物位于 `build/distributions/OkHttpSniffer-1.2.4.zip`。
+使用 JDK 21，在仓库根目录执行 `.\gradlew.bat test buildPlugin verifyPluginStructure -PStudioCompilePath="C:\Program Files\Android\Android Studio"`，产物位于 `build/distributions/OkHttpSniffer-1.2.5.zip`。
 
 [问题反馈](https://github.com/mobcoding/OkHttpSniffer/issues) · [Marketplace 提交指南](marketplace/提交指南.md) · [简体中文接入说明](marketplace/getting-started.html) · [隐私说明](marketplace/privacy.md)
 
