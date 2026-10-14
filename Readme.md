@@ -2,12 +2,12 @@
 
 在 Android Studio 中查看 OkHttp 请求、响应和 JSON，支持复制响应体、cURL 和生成模型。
 
-- IDE 插件：`1.2.3`，适用于 Android Studio 261 平台；已验证本机 2026.1.3。
+- IDE 插件：`1.2.4`，适用于 Android Studio 261 平台；已验证本机 2026.1.3。
 - Android 依赖：`1.1.4`，支持 Android 5.0 及以上，应用需已有 OkHttp 依赖，构建工具需兼容 Kotlin 2.2.0 和 JVM 17。
 
 ## 安装插件
 
-在 Android Studio 的“设置 → 插件 → 齿轮菜单 → 从磁盘安装插件”中选择 `OkHttpSniffer-1.2.3.zip`，按提示重启。通过“视图 → 工具窗口 → OkHttpSniffer”打开插件。
+在 Android Studio 的“设置 → 插件 → 齿轮菜单 → 从磁盘安装插件”中选择 `OkHttpSniffer-1.2.4.zip`，按提示重启。通过“视图 → 工具窗口 → OkHttpSniffer”打开插件。
 
 ## 1. 添加依赖
 
@@ -90,7 +90,7 @@ val client = OkHttpClient.Builder()
 
 ## 构建与反馈
 
-使用 JDK 21，在仓库根目录执行 `.\gradlew.bat test buildPlugin verifyPluginStructure -PStudioCompilePath="C:\Program Files\Android\Android Studio"`，产物位于 `build/distributions/OkHttpSniffer-1.2.3.zip`。
+使用 JDK 21，在仓库根目录执行 `.\gradlew.bat test buildPlugin verifyPluginStructure -PStudioCompilePath="C:\Program Files\Android\Android Studio"`，产物位于 `build/distributions/OkHttpSniffer-1.2.4.zip`。
 
 [问题反馈](https://github.com/mobcoding/OkHttpSniffer/issues) · [Marketplace 提交指南](marketplace/提交指南.md) · [简体中文接入说明](marketplace/getting-started.html) · [隐私说明](marketplace/privacy.md)
 
