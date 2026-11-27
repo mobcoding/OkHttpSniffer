@@ -34,6 +34,7 @@ import java.awt.event.ItemEvent
 import java.util.concurrent.Executors
 import javax.swing.DefaultComboBoxModel
 import javax.swing.SwingUtilities
+import javax.swing.SwingWorker
 import javax.swing.Timer
 
 class AdbController(val mainForm: MainForm, project: Project, val preferences: PluginPreferences) : Disposable {
@@ -47,6 +48,10 @@ class AdbController(val mainForm: MainForm, project: Project, val preferences: P
     private var logCatReceiverTask: LogCatReceiverTask? = null
     private var updatingDeviceList = false
     private var updatingProcessList = false
+    @Volatile
+    private var disposed = false
+    private data class DeviceEntry(val item: DebugDevice, val online: Boolean, val lookup: SwingWorker<*, *>?)
+    private val deviceEntries = mutableMapOf<String, DeviceEntry>()
     private val requestDataSource = RequestDataSource()
 
     val requestTableController = FormViewController(mainForm, project, requestDataSource)
@@ -61,9 +66,7 @@ class AdbController(val mainForm: MainForm, project: Project, val preferences: P
     private val deviceSelectionListener = java.awt.event.ItemListener { event ->
         if (event.stateChange == ItemEvent.SELECTED && !updatingDeviceList) {
             (event.item as? DebugDevice)?.let { debugDevice ->
-                captureGeneration++
-                preferences.setSelectedDevice(debugDevice.device.name)
-                requestTableController.clear()
+                preferences.setSelectedDevice(debugDevice.serialNumber)
                 attachToDevice(debugDevice.device)
             }
         }
@@ -83,17 +86,14 @@ class AdbController(val mainForm: MainForm, project: Project, val preferences: P
 
     private val deviceChangeListener = object : AndroidDebugBridge.IDeviceChangeListener {
         override fun deviceChanged(device: IDevice?, changeMask: Int) {
-            log("deviceChanged $device")
             updateDeviceList(AndroidDebugBridge.getBridge()?.devices)
         }
 
         override fun deviceConnected(device: IDevice?) {
-            log("deviceConnected $device")
             updateDeviceList(AndroidDebugBridge.getBridge()?.devices)
         }
 
         override fun deviceDisconnected(device: IDevice?) {
-            log("deviceDisconnected $device")
             updateDeviceList(AndroidDebugBridge.getBridge()?.devices)
         }
     }
@@ -161,6 +161,7 @@ class AdbController(val mainForm: MainForm, project: Project, val preferences: P
     }
 
     private fun updateClient(client: Client?) {
+        if (disposed) return
         if (!SwingUtilities.isEventDispatchThread()) {
             SwingUtilities.invokeLater { updateClient(client) }
             return
@@ -188,42 +189,56 @@ class AdbController(val mainForm: MainForm, project: Project, val preferences: P
     }
 
     private fun updateDeviceList(devices: Array<IDevice>?) {
+        if (disposed) return
         if (!SwingUtilities.isEventDispatchThread()) {
             SwingUtilities.invokeLater { updateDeviceList(devices) }
             return
         }
-        log("updateDeviceList ${devices?.size}")
-        val selectedDeviceName = preferences.getSelectedDevice()
-        var selectedDevice: IDevice? = null
-        if (!devices.isNullOrEmpty()) {
-            mainForm.mainContainer.isVisible = true
-            val debugDevices = ArrayList<DebugDevice>()
-            for (device in devices) {
-                val debugDevice = DebugDevice(device)
-                if (device.name == selectedDeviceName) {
-                    selectedDevice = device
-                }
-                debugDevices.add(debugDevice)
-            }
-            val model = DefaultComboBoxModel<DebugDevice>(debugDevices.toTypedArray())
-            val list = mainForm.deviceList
+        val connected = devices.orEmpty().associateBy { it.serialNumber }
+        val online = connected.mapValues { (_, device) -> device.isOnline }
+        deviceEntries.entries.removeIf { (serial, entry) ->
+            if (connected[serial] === entry.item.device && online[serial] == entry.online) return@removeIf false
+            entry.lookup?.cancel(true)
+            true
+        }
+        val items = connected.map { (serial, device) ->
+            deviceEntries.getOrPut(serial) {
+                val item = DebugDevice(device)
+                val isOnline = online.getValue(serial)
+                val lookup = if (isOnline) item.loadDetails { name ->
+                    if (!disposed && deviceEntries[serial]?.item === item) {
+                        mainForm.deviceList.revalidate()
+                        mainForm.deviceList.repaint()
+                        // Migrate device names saved by older plugin versions.
+                        val preference = preferences.getSelectedDevice()
+                        if (name != serial && preference == name && name !in deviceEntries) {
+                            preferences.setSelectedDevice(serial)
+                            mainForm.deviceList.selectedItem = item
+                        }
+                    }
+                } else null
+                DeviceEntry(item, isOnline, lookup)
+            }.item
+        }
+        val list = mainForm.deviceList
+        val current = (list.selectedItem as? DebugDevice)?.serialNumber
+        val selected = deviceEntries[preferences.getSelectedDevice()]?.item
+            ?: deviceEntries[current]?.item ?: items.firstOrNull()
+        if (list.itemCount != items.size || items.indices.any { list.getItemAt(it) !== items[it] } ||
+            list.selectedItem !== selected) {
             updatingDeviceList = true
             try {
-                list.model = model
-                selectedDevice?.let { current ->
-                    list.selectedItem = debugDevices.firstOrNull { it.device == current }
-                }
+                list.model = DefaultComboBoxModel(items.toTypedArray())
+                list.selectedItem = selected
             } finally {
                 updatingDeviceList = false
             }
-            if (selectedDevice != null) {
-                attachToDevice(selectedDevice)
-            } else {
-                devices.firstOrNull()?.let {
-                    attachToDevice(it)
-                }
-            }
+        }
+        if (selected != null) {
+            mainForm.mainContainer.isVisible = true
+            attachToDevice(selected.device)
         } else {
+            if (selectedDevice != null) captureGeneration++
             stopLogCatReceiver()
             selectedDevice = null
             selectedProcess = null
@@ -237,7 +252,7 @@ class AdbController(val mainForm: MainForm, project: Project, val preferences: P
             SwingUtilities.invokeLater { attachToDevice(device) }
             return
         }
-        val deviceChanged = selectedDevice?.serialNumber != device.serialNumber
+        val deviceChanged = selectedDevice !== device
         if (deviceChanged) {
             captureGeneration++
             requestTableController.clear()
@@ -281,8 +296,7 @@ class AdbController(val mainForm: MainForm, project: Project, val preferences: P
     }
 
     private fun setListener(device: IDevice) {
-        log(device.toString())
-        if (selectedDevice?.serialNumber == device.serialNumber && logCatReceiverTask != null) {
+        if (selectedDevice === device && logCatReceiverTask != null) {
             return
         }
         stopLogCatReceiver()
@@ -300,6 +314,9 @@ class AdbController(val mainForm: MainForm, project: Project, val preferences: P
     }
 
     override fun dispose() {
+        disposed = true
+        deviceEntries.values.forEach { it.lookup?.cancel(true) }
+        deviceEntries.clear()
         updateTimer.stop()
         pendingUpdates.clear()
         captureGeneration++

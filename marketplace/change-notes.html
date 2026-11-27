@@ -1,6 +1,6 @@
-<p>OkHttpSniffer 1.2.5</p>
+<p>OkHttpSniffer 1.2.6</p>
 <ul>
-  <li>简化 Kotlin 接入示例：使用 implementation 配合应用模块的 BuildConfig.DEBUG，仅在 Debug 添加拦截器，避免 Release 缺少依赖导致编译失败。</li>
-  <li>同步更新插件内使用说明、README 和上架接入文档，移除 debug/release 双文件示例。</li>
+  <li>修复打开工具窗口或刷新设备列表时，慢速 ADB 设备属性查询可能导致 IDE 界面卡死的问题。</li>
+  <li>设备下拉框先显示序列号，后台读取完成后更新设备名称和 Android 版本。</li>
 </ul>
 <p>Android 运行时依赖保持 <code>com.github.mobcoding:OkHttpSniffer:1.1.5</code>。</p>

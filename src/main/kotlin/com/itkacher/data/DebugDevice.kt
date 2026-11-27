@@ -17,16 +17,43 @@ package com.itkacher.data
 
 import com.android.ddmlib.IDevice
 import com.itkacher.extension.safe
+import java.util.concurrent.ExecutionException
+import javax.swing.SwingWorker
 
-data class DebugDevice(
-        val device: IDevice
-) {
-    override fun toString(): String {
+class DebugDevice(val device: IDevice) {
+    val serialNumber: String = device.serialNumber
+    private var label = serialNumber
+
+    override fun toString(): String = label
+
+    internal fun loadDetails(onLoaded: (String) -> Unit): SwingWorker<Pair<String?, String>, Unit> =
+        object : SwingWorker<Pair<String?, String>, Unit>() {
+            override fun doInBackground(): Pair<String?, String> {
+                val name = device.name
+                return name to formatLabel(name)
+            }
+
+            override fun done() {
+                if (isCancelled) return
+                val (name, resolvedLabel) = try {
+                    get()
+                } catch (_: ExecutionException) {
+                    return // Keep the serial number when device metadata is unavailable.
+                } catch (_: InterruptedException) {
+                    Thread.currentThread().interrupt()
+                    return
+                }
+                label = resolvedLabel
+                onLoaded(name ?: serialNumber)
+            }
+        }.apply { execute() }
+
+    private fun formatLabel(name: String?): String {
         return if(device.isEmulator) {
             val emulatorName = device.getProperty(IDevice.PROP_DEVICE_MODEL).safe().replace("_", " ")
             "Emulator $emulatorName Android ${device.getProperty(IDevice.PROP_BUILD_VERSION).safe()}, API ${device.getProperty(IDevice.PROP_BUILD_API_LEVEL).safe()}"
         } else {
-            val deviceName = device.name.safe().replace("_", " ")
+            val deviceName = name?.takeIf { it.isNotBlank() }?.replace("_", " ") ?: serialNumber
             val shortened = if(deviceName.length > 20) {
                 deviceName.substring(0, 20)
             } else {

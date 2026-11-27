@@ -5,7 +5,7 @@ plugins {
 }
 
 group = 'com.mobcoding.okhttpsniffer'
-version = '1.2.5'
+version = '1.2.6'
 
 def studioCompilePath = providers.gradleProperty('StudioCompilePath')
         .orElse(providers.environmentVariable('ANDROID_STUDIO_HOME'))
@@ -22,6 +22,10 @@ def studioDirectory = file(studioCompilePath)
 if (!studioDirectory.isDirectory()) {
     throw new GradleException("Android Studio directory does not exist: $studioDirectory")
 }
+
+def studioBuild = new File(studioDirectory, 'build.txt')
+def studioBaseline = studioBuild.isFile() ? (studioBuild.text.trim() =~ /^(?:[A-Z]+-)?(\d+)\./) : null
+def compilerJavaVersion = studioBaseline?.find() && studioBaseline.group(1).toInteger() >= 262 ? 25 : 21
 
 repositories {
     mavenCentral()
@@ -46,12 +50,16 @@ dependencies {
 
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(21)
+        languageVersion = JavaLanguageVersion.of(compilerJavaVersion)
     }
 }
 
 kotlin {
-    jvmToolchain(21)
+    jvmToolchain(compilerJavaVersion)
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.release = 21
 }
 
 tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile).configureEach {
@@ -80,9 +88,9 @@ intellijPlatform {
 
 tasks.register('verifySetup') {
     doLast {
-        def platformJar = new File(studioDirectory, 'lib/app.jar')
+        def platformJars = ['lib/app.jar', 'lib/app-backend.jar']
         def androidPluginJar = new File(studioDirectory, 'plugins/android/lib/android.jar')
-        if (!platformJar.exists() || !androidPluginJar.exists()) {
+        if (!platformJars.any { new File(studioDirectory, it).isFile() } || !androidPluginJar.isFile()) {
             throw new GradleException(
                     "Android Studio platform files not found under $studioDirectory. " +
                             'Set StudioCompilePath to an Android Studio installation directory.'
